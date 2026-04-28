@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "/Users/bauti/ContArqui/TPE-Arqui/x64BareBones/Kernel",
+    "command": "clang -std=c99 -Wall -Iinclude -I../include -Icdrivers -fno-builtin -nostdlib videoDriver.c",
+    "file": "cdrivers/videoDriver.c"
+  }
+]
