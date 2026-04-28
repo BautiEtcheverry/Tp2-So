@@ -5,6 +5,7 @@
 #include <videoDriver.h>
 #include <gfxConsole.h>
 #include <audioDriver.h>
+#include <libasm.h>
 
 extern uint64_t exc_resume_rip; 
 extern uint64_t read_tsc_asm(void);
@@ -164,10 +165,8 @@ static uint64_t sys_get_shell_rows(void)
 
 static inline uint8_t cmos_read(uint8_t reg)
 {
-    __asm__ volatile("outb %0, %1" : : "a"(reg), "Nd"((uint16_t)0x70));
-    uint8_t val;
-    __asm__ volatile("inb %1, %0" : "=a"(val) : "Nd"((uint16_t)0x71));
-    return val;
+    outb(0x70, reg);
+    return inb(0x71);
 }
 
 static uint8_t bcd_to_bin(uint8_t b)

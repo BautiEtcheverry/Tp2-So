@@ -42,11 +42,10 @@ static void printExp(registers_t *regs, const char *message) {
     vdSetColor(0xFFFFFF);
 }
 
-// stack_frame layout:
+// stack_frame layout (long mode siempre pushea SS:RSP):
 // [0]=RAX [1]=RBX [2]=RCX [3]=RDX [4]=RSI [5]=RDI [6]=RBP
 // [7]=R8  [8]=R9  [9]=R10 [10]=R11 [11]=R12 [12]=R13 [13]=R14 [14]=R15
-// [15]=RIP [16]=CS [17]=RFLAGS
-// RSP original = (uint64_t)stack_frame + 15*8 + 24
+// [15]=RIP [16]=CS [17]=RFLAGS [18]=RSP [19]=SS
 void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame){
     registers_t regs;
     regs.rax = stack_frame[0];
@@ -67,7 +66,7 @@ void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame){
     regs.rip = stack_frame[15];
     regs.cs  = stack_frame[16];
     regs.rflags = stack_frame[17];
-    regs.rsp = (uint64_t)stack_frame + (15ull*8ull) + 24ull;
+    regs.rsp = stack_frame[18];
 
     switch (exception) {
         case 0:  printExp(&regs, "[EXCEPTION] Division by zero\n\n"); break;

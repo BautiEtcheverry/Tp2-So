@@ -6,6 +6,8 @@ GLOBAL picSlaveMask
 GLOBAL sti_enable
 GLOBAL inb
 GLOBAL outb
+GLOBAL inl
+GLOBAL outl
 GLOBAL cpu_halt
 GLOBAL read_tsc_asm
 
@@ -112,6 +114,21 @@ outb:
 	mov dx, di
 	mov al, sil
 	out dx, al
+	ret
+
+; uint32_t inl(uint16_t port)
+;   RDI: port
+inl:
+	mov dx, di
+	in  eax, dx
+	ret
+
+; void outl(uint16_t port, uint32_t val)
+;   RDI: port, RSI: val
+outl:
+	mov dx, di
+	mov eax, esi
+	out dx, eax
 	ret
 
 ; void cpu_halt(void)
