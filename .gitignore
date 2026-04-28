@@ -1,13 +1,17 @@
-*.bak
-*.db
-*.avi
-*.pdf
-*.ps
-*.mid
-*.midi
-*.mp3
-*.aif
-*.wav
-# Some versions of Finale have a bug and randomly save extra copies of
-# the music source as "<Filename> copy.mus"
-*copy.mus
+# Archivos objeto
+src/*.o
+
+# Carpetas de editor
+.vscode/
+*.json
+
+# Basura del fileSystem
+.DS_Store
+*.log
+*.out
+.claude
+.cache 
+# Historiales locales que no van al repo
+.bash_history
+.bashrc
+.viminfo
