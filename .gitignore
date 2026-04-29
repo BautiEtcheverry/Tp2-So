@@ -1,5 +1,7 @@
-# Archivos objeto
-src/*.o
+# Archivos objeto y binarios
+*.o
+*.bin
+*.elf
 
 # Carpetas de editor
 .vscode/
@@ -11,6 +13,7 @@ src/*.o
 *.out
 .claude
 .cache 
+
 # Historiales locales que no van al repo
 .bash_history
 .bashrc
