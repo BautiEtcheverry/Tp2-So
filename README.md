@@ -8,6 +8,7 @@ Construcción del núcleo de un sistema operativo y mecanismos de administració
 | Etcheverry Bautista | 65765 | betcheverry@itba.edu.ar |
 | Humphreys Juan Edwin | 65477 | jhumphreys@itba.edu.ar |
 | Leite Benicio | 64181 | bleite@itba.edu.ar |
+| Villanueva Felipe | 65250 | fvillanueva@itba.edu.ar |
 
 ---
 
