@@ -1,0 +1,30 @@
+# Flags para clangd (intellisense del IDE). NO afecta la build real:
+# `make` sigue usando los flags del Makefile. Estos sólo se aplican
+# mientras editás, para cazar bugs antes de compilar.
+
+-std=c99
+-m64
+-ffreestanding
+-nostdlib
+-fno-pie
+-fno-common
+-fno-exceptions
+-fno-asynchronous-unwind-tables
+-fno-builtin-malloc
+-fno-builtin-free
+-fno-builtin-realloc
+-mno-red-zone
+-mno-mmx
+-mno-sse
+-mno-sse2
+-I./include
+-I.
+
+# Warnings extra (sólo dev — no están en el Makefile a propósito).
+-Wall
+-Wextra
+-Wpedantic
+-Wshadow
+-Wnull-dereference
+-Wuninitialized
+-Wconversion
