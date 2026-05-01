@@ -21,13 +21,7 @@ int scanf(const char *fmt, ...);
 void putChar(char c);
 char getChar(void);
 
-// Benchmarks (compiled from ../benchmarks)
-int benchmark_float(int argc, char *argv[]);
-int benchmark_iolat(int argc, char *argv[]);
-int benchmark_memlat(int argc, char *argv[]);
 
-// Implemented in ../Tron/tron.c
-extern void tron_menu(void);
 
 // Implemented in ./text.c
 extern void trigger_div0(void);
@@ -61,11 +55,7 @@ static int clear_wrapper(int argc, char *argv[]) {
     return 0;
 }
 
-static int tron_wrapper(int argc, char *argv[]) {
-    (void)argc; (void)argv;
-    tron_menu();
-    return 0;
-}
+
 
 static int regs_wrapper(int argc, char *argv[]) {
     (void)argc; (void)argv;
@@ -102,10 +92,6 @@ commands[] = {
     { "textColor", textColor, "Change text color" },
     { "textSize", textSize, "Change text size" },
     { "regs",      regs_wrapper,      "Show regs" },
-    { "tron",      tron_wrapper,      "Start Tron" },
-    { "benchmark-Float",  benchmark_float,  "Run floating-point benchmark" },
-    { "benchmark-IOlat",  benchmark_iolat,  "Measure shell I/O latency" },
-    { "benchmark-Memlat", benchmark_memlat, "Measure memory latency" },
     { "trigger-div", trigger_div0_wrapper, "Trigger a division by zero exception" },
     { "trigger-ud", trigger_ud_wrapper, "Trigger a invalid opcode(undefined instruction) exception" },
     { NULL,        NULL,          NULL }
@@ -129,11 +115,7 @@ static int help(int argc, char *argv[]) {
     printf("    textColor <name>\n");
     printf("    textColor list\n");
     printf("    textSize <default|large|xlarge>\n");
-    printf("    tron\n");
     printf("    regs\n");
-    printf("    benchmark-Float [OUT= iterations | ops | warmup]\n");
-    printf("    benchmark-IOlat <write|kbd> [OUT= mode | iterations]\n");
-    printf("    benchmark-Memlat [OUT= size_kb | stride | iterations]\n");
     printf("    trigger-div\n");
     printf("    trigger-ud\n");
     return 0;
