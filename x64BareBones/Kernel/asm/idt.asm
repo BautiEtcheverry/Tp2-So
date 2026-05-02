@@ -1,7 +1,8 @@
 GLOBAL syscall_gate_init
 GLOBAL isr_irq1_keyboard
 GLOBAL _irq01Handler
-
+GLOBAL _irq00Handler
+extern schedule
 extern isr_syscall_80
 extern keyboard_isr_handler
 extern isr_exc_de
@@ -63,6 +64,8 @@ syscall_gate_init:
     mov dword [rdi+8], eax
     mov dword [rdi+12], 0
 
+    SET_GATE 0x20, _irq00Handler    ; IRQ0 = vector 0x20
+
     ; Set keyboard IRQ (0x21) gate (kernel only)
     SET_GATE 0x21, isr_irq1_keyboard
     
@@ -73,6 +76,50 @@ syscall_gate_init:
     mov rsp, rbp
     pop rbp
     ret
+
+; Handler IRQ0 (timer) — agrega context switch
+_irq00Handler:
+    pushq 0                  ; código de error ficticio (alineación)
+    push rbp
+    push r15
+    push r14
+    push r13
+    push r12
+    push r11
+    push r10
+    push r9
+    push r8
+    push rdi
+    push rsi
+    push rdx
+    push rcx
+    push rbx
+    push rax
+
+    mov al, 0x20
+    out 0x20, al             ; EOI al PIC master
+
+    mov rdi, rsp             ; pasar RSP actual como argumento a schedule()
+    call schedule            ; retorna el nuevo RSP a cargar
+    mov rsp, rax             ; cargar stack del nuevo proceso
+
+    pop rax
+    pop rbx
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rdi
+    pop r8
+    pop r9
+    pop r10
+    pop r11
+    pop r12
+    pop r13
+    pop r14
+    pop r15
+    pop rbp
+    add rsp, 8               ; descartar el código de error ficticio
+    iretq
 
 ; Keyboard IRQ (0x21) handler stub 
 

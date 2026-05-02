@@ -43,10 +43,12 @@ void *getStackBase()
 // Initialize interrupts
 // Initialize the PICs and enable CPU interrupts
 void init_irqs(void) {
-    picMasterMask(0xF9);   
+    picMasterMask(0xF8);   // Antes era 0xF9 (IRQ0 maskeado, IRQ1 libre)
+                       	   // 0xF8 = 11111000 → IRQ0 (timer) e IRQ1 (teclado) demascarados   
     picSlaveMask(0xFF);    
     sti_enable();          // enable CPU interrupts
 }
+
 
 void *initializeKernelBinary()
 {
@@ -124,6 +126,17 @@ int main()
 	ncPrintHex((uint64_t)shellModuleAddress);
 	ncNewline();
 	ncPrint("  Jumping to shell...\n");
+	// Crear proceso idle (se ejecuta cuando no hay otros ready)
+	PCB * idleProc = createProcess("idle", idleMain, 0, NULL, 255, 0);
+	initScheduler(idleProc);
+
+	// Crear proceso shell (primer proceso de usuario)
+	PCB * shellProc = createProcess("sh", shellMain, 0, NULL, 0, 1);
+	addProcess(shellProc);
+
+	// A partir de acá el scheduler toma el control via IRQ0
+	// Este código nunca llega más allá del primer tick
+	while(1) { asm volatile("hlt"); }
 	((EntryPoint)shellModuleAddress)();
 	
 	return 0;
