@@ -15,7 +15,7 @@ typedef struct PCB {
     ProcessState  state;
     int           priority;   // 0 = máxima, mayor número = menor prioridad
     int           foreground; // 1 si es foreground de la shell
-    int           fd[2];      // fd[0]=stdin fd[1]=stdout — para pipes (Paso 6)
+    int           fd[2];      // fd[0]=stdin fd[1]=stdout — para pipes
     struct PCB  * next;
 } PCB;
 
@@ -24,6 +24,7 @@ typedef int (*ProcessMain)(int argc, char ** argv);
 PCB * createProcess(const char * name, ProcessMain entry,
                     int argc, char ** argv,
                     int priority, int foreground);
+
 void  destroyProcess(PCB * pcb);
 
 #endif

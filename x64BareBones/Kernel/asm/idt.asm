@@ -2,6 +2,7 @@ GLOBAL syscall_gate_init
 GLOBAL isr_irq1_keyboard
 GLOBAL _irq01Handler
 GLOBAL _irq00Handler
+GLOBAL _init_process_stack
 extern schedule
 extern isr_syscall_80
 extern keyboard_isr_handler
@@ -121,7 +122,86 @@ _irq00Handler:
     add rsp, 8               ; descartar el código de error ficticio
     iretq
 
-; Keyboard IRQ (0x21) handler stub 
+; Arma el frame inicial de un proceso nuevo en su stack, con el mismo layout
+; que usa _irq00Handler, para que pueda ser lanzado via iretq.
+;
+; uint64_t _init_process_stack(uint64_t stack_top, ProcessMain entry,
+;                               int64_t argc, char **argv, void (*on_exit)(void))
+; rdi=stack_top  rsi=entry  rdx=argc  rcx=argv  r8=on_exit
+; Retorna rax = RSP inicial del proceso
+;
+; Usa r12 como puntero manual al stack del nuevo proceso — nunca modifica rsp,
+; así el stack del kernel que llama permanece intacto.
+_init_process_stack:
+    push rbp
+    mov  rbp, rsp
+    push r12
+    push r13
+    push r14
+
+    mov  r12, rdi        ; r12 = cursor sobre el stack del nuevo proceso
+    mov  r13, rsi        ; r13 = entry
+    mov  r14, r8         ; r14 = on_exit
+    ; rdx = argc, rcx = argv (se usan directo más abajo)
+
+    ; Dirección de retorno para cuando entry() haga ret
+    sub  r12, 8
+    mov  [r12], r14
+
+    ; iretq frame — mismo orden que espera iretq en 64 bits (ring0→ring0)
+    sub  r12, 8
+    mov  qword [r12], 0x202    ; RFLAGS (IF habilitado)
+    sub  r12, 8
+    mov  qword [r12], 0x08     ; CS (segmento de código del kernel)
+    sub  r12, 8
+    mov  [r12], r13            ; RIP = entry
+
+    ; Error code ficticio (el handler lo descarta con add rsp, 8)
+    sub  r12, 8
+    mov  qword [r12], 0
+
+    ; Registros guardados — orden inverso al push de _irq00Handler:
+    ; push rbp,r15..r8,rdi,rsi,rdx,rcx,rbx,rax  →  pop rax primero ([rsp+0])
+    sub  r12, 8
+    mov  qword [r12], 0        ; rbp
+    sub  r12, 8
+    mov  qword [r12], 0        ; r15
+    sub  r12, 8
+    mov  qword [r12], 0        ; r14
+    sub  r12, 8
+    mov  qword [r12], 0        ; r13
+    sub  r12, 8
+    mov  qword [r12], 0        ; r12
+    sub  r12, 8
+    mov  qword [r12], 0        ; r11
+    sub  r12, 8
+    mov  qword [r12], 0        ; r10
+    sub  r12, 8
+    mov  qword [r12], 0        ; r9
+    sub  r12, 8
+    mov  qword [r12], 0        ; r8
+    sub  r12, 8
+    mov  [r12], rdx            ; rdi = argc  (1er arg de entry)
+    sub  r12, 8
+    mov  [r12], rcx            ; rsi = argv  (2do arg de entry)
+    sub  r12, 8
+    mov  qword [r12], 0        ; rdx
+    sub  r12, 8
+    mov  qword [r12], 0        ; rcx
+    sub  r12, 8
+    mov  qword [r12], 0        ; rbx
+    sub  r12, 8
+    mov  qword [r12], 0        ; rax
+
+    mov  rax, r12              ; retornar el RSP inicial del proceso
+
+    pop  r14
+    pop  r13
+    pop  r12
+    pop  rbp
+    ret
+
+; Keyboard IRQ (0x21) handler stub
 
 isr_irq1_keyboard:
 _irq01Handler:

@@ -1,10 +1,20 @@
 /*
- * Stub de memoria para unit tests en el host.
- * Redirige sys_malloc / sys_free a malloc / free de la libc estándar,
- * sin necesitar el buddy allocator del kernel.
+ * Stubs para unit tests en el host.
+ * - Memoria: redirige sys_malloc/sys_free a malloc/free de la libc.
+ * - Stack:   _init_process_stack retorna un RSP dummy (los tests no
+ *            hacen context switch real, no necesitan el frame).
  */
+#include "process.h"
 #include "memory_manager.h"
 #include <stdlib.h>
+#include <stdint.h>
+
+uint64_t _init_process_stack(uint64_t stack_top, ProcessMain entry,
+                              int64_t argc, char ** argv,
+                              void (* on_exit)(void)) {
+    (void)entry; (void)argc; (void)argv; (void)on_exit;
+    return stack_top;
+}
 
 void * sys_malloc(size_t size) { return malloc(size); }
 void   sys_free(void * ptr)    { free(ptr); }
