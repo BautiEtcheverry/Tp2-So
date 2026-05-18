@@ -45,6 +45,19 @@ void init_irqs(void) {
 	sti_enable(); // enable CPU interrupts
 }
 
+int idleMain(int argc, char ** argv) {
+    (void) argc; (void) argv;
+    while (1)
+        __asm__ volatile("hlt");
+    return 0;
+}
+int shellMain(int argc, char ** argv) {
+    (void) argc; (void) argv;
+    ((EntryPoint) shellModuleAddress)();   // 0x400000, donde loadModules monta la shell
+    return 0;
+}
+
+
 void *initializeKernelBinary() {
 	char buffer[10];
 
