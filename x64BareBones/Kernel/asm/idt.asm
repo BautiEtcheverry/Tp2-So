@@ -80,7 +80,7 @@ syscall_gate_init:
 
 ; Handler IRQ0 (timer) — agrega context switch
 _irq00Handler:
-    pushq 0                  ; código de error ficticio (alineación)
+    push qword 0                  ; código de error ficticio (alineación)
     push rbp
     push r15
     push r14
