@@ -6,6 +6,7 @@
 # Carpetas de editor
 .vscode/
 *.json
+compile_flags.txt
 
 # Basura del fileSystem
 .DS_Store
