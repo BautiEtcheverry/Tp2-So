@@ -288,22 +288,6 @@ int audioStopTone(void)
     return 0;
 }
 
-int audioInitDriver(void)
-{
-    audioClearState();
-
-    if (audioDetectHardware(AUDIO_MMIO_DEFAULT_BASE) != 0)
-        return -1;
-    if (audioResetHardware() != 0)
-        return -2;
-    if (audioConfigureFormat(AUDIO_DEFAULT_SAMPLE_RATE, AUDIO_DEFAULT_CHANNELS, AUDIO_DEFAULT_BITS) != 0)
-        return -3;
-    if (audioEnableInterrupts() != 0)
-        return -4;
-
-    audioCtx.initialized = 1;
-    return 0;
-}
 
 audio_driver_status_t audioGetStatus(void)
 {

@@ -25,7 +25,6 @@ typedef struct
 audio_driver_status_t audioGetStatus(void);
 
 // Driver initialization functions
-int audioInitDriver(void);
 int audioDetectHardware(uint32_t mmioBase);
 int audioResetHardware(void);
 int audioConfigureFormat(uint32_t sampleRate, uint8_t channels, uint8_t bitsPerSample);

@@ -106,8 +106,6 @@ void *initializeKernelBinary()
 	// Enable keyboard interrupts: unmask IRQ1 on PIC and enable IF
 	init_irqs();
 	  
-	// Initialize audio driver (PC speaker / PCI probe)
-	(void)audioInitDriver();
 
 	return getStackBase();
 }
