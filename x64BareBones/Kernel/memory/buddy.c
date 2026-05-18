@@ -37,6 +37,13 @@ struct memory_manager_CDT {
 
 static memory_manager_ADT kernel_mm = NULL;
 
+//Firmas de funciones estaticas.
+static void add_to_free_list(memory_manager_ADT mm, buddy_node_t *node, uint8_t order);
+static buddy_node_t *split_block(memory_manager_ADT mm, uint8_t order);
+static void remove_from_free_list(memory_manager_ADT mm, buddy_node_t *node, uint8_t order);
+static void coalesce(memory_manager_ADT mm, buddy_node_t *block);
+
+
 /*-------------------Helpers---------------------*/
 // Retorna  2^order — tamaño en bytes de un bloque de orden `order`.
 static size_t order_to_size(uint8_t order) {
