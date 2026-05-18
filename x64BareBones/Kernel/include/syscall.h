@@ -23,10 +23,6 @@ enum
     SYS_GET_SCREEN_PX_WIDTH = 16,
     SYS_GET_SCREEN_PX_HEIGHT = 17,
     SYS_SET_TEXT_SIZE=18,            // Change the shell textSize (textSize command<default,large,xlarge>)         // Change the shell textSize (textSize command<default,large,xlarge>)
-    SYS_AUDIO_PLAY_TONE = 19,       // audioPlayTone(frequency in hz 20-20000 range)
-    SYS_AUDIO_STOP_TONE = 20,       // audioStopTone()
-    SYS_AUDIO_SET_VOLUME = 21,      // audioSetVolume(volume 0-100)
-    SYS_AUDIO_MUTE = 22,             // audioMute(enable)
     SYS_SET_EXC_RESUME = 23 ,        // set exception resume point
     SYS_READ_TSC = 24                 // read Time Stamp Counter
 };

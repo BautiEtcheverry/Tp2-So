@@ -4,7 +4,6 @@
 #include <moduleLoader.h>
 #include <naiveConsole.h>
 #include <videoDriver.h>
-#include <audioDriver.h>
 #include <syscall.h>
 #include <gfxConsole.h>
 extern void syscall_gate_init();

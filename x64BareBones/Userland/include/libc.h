@@ -31,9 +31,6 @@ enum
     SYS_GET_SCREEN_PX_WIDTH = 16,
     SYS_GET_SCREEN_PX_HEIGHT = 17,
     SYS_SET_TEXT_SIZE=18,
-    SYS_AUDIO_PLAY_TONE = 19,
-    SYS_AUDIO_STOP_TONE = 20,
-    SYS_AUDIO_MUTE = 22,
     SYS_SET_EXC_RESUME=23,
     SYS_READ_TSC = 24
 };
@@ -209,19 +206,4 @@ static inline void set_exc_resume(void *addr){
     sys_1p(SYS_SET_EXC_RESUME, (uint64_t)addr);
 }
 
-
-/* Audio driver functions */
-/*----------------------------------------------------------------------*/
-static inline int audioPlayTone(uint32_t frequency) {
-    return (int)sys_3p(SYS_AUDIO_PLAY_TONE, (uint64_t)frequency, 0, 0);
-}
-
-static inline int audioStopTone(void) {
-    return (int)sys_3p(SYS_AUDIO_STOP_TONE, 0, 0, 0);
-}
-
-static inline int audioMute(uint8_t enable) {
-    return (int)sys_3p(SYS_AUDIO_MUTE, (uint64_t)enable, 0, 0);
-}
-/*-----------------------------------------------------------------------*/
 #endif

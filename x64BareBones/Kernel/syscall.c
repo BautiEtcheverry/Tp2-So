@@ -4,7 +4,6 @@
 #include <keyboard.h>
 #include <videoDriver.h>
 #include <gfxConsole.h>
-#include <audioDriver.h>
 #include <libasm.h>
 
 extern uint64_t exc_resume_rip; 
@@ -223,21 +222,6 @@ static uint64_t sys_set_text_size(uint64_t mode)
     return (uint64_t)-1;
 }
 
-static uint64_t sys_audio_play_tone(uint64_t frequency)
-{
-    return (uint64_t)audioPlayTone((uint32_t)frequency);
-}
-
-static uint64_t sys_audio_stop_tone(void)
-{
-    return (uint64_t)audioStopTone();
-}
-
-static uint64_t sys_audio_mute(uint64_t enable)
-{
-    return (uint64_t)audioMute((uint8_t)enable);
-}
-
 uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
 {
     switch (id)
@@ -302,12 +286,6 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return (uint64_t)sys_set_text_size((int)a1);
     case SYS_SET_EXC_RESUME:
         return sys_set_exc_resume(a1);
-    case SYS_AUDIO_PLAY_TONE:
-        return sys_audio_play_tone(a1);
-    case SYS_AUDIO_STOP_TONE:
-        return sys_audio_stop_tone();
-    case SYS_AUDIO_MUTE:
-        return sys_audio_mute(a1);
     case SYS_READ_TSC:
         return sys_read_tsc();
     default:
