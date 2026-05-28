@@ -1,5 +1,6 @@
 #include "process.h"
 #include "memory_manager.h"
+#include "scheduler.h"
 #include <stdint.h>
 
 #define PROCESS_STACK_SIZE (4096 * 4)

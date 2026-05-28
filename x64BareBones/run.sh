@@ -20,6 +20,8 @@ main() {
         -hda "$IMAGE_PATH" \
         -m 512 \
         -rtc base=localtime,clock=host \
+        -d int,cpu_reset,guest_errors -no-reboot -no-shutdown -D qemu.log
+
 }
 
 main "$@"

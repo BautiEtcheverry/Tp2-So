@@ -11,6 +11,12 @@ GLOBAL outl
 GLOBAL cpu_halt
 GLOBAL read_tsc_asm
 
+;Funcion para solucionar problema de pantalla negra por que al comenzar el rtc que en arqui
+;usabamos para calcular los fps no para de interrumpir (INT 0x28) y como el loader.asm no hace
+;cli antes de de hacer call initializeKernelBinary y call main, y el handler de para 0x28 sigue 
+;siendo el de Pure64 se queda en un bucle infinito.
+GLOBAL disable_rtc
+
 extern syscall_dispatch
 extern capture_definitiva
 
@@ -161,3 +167,21 @@ read_tsc_asm:
     shl rdx, 32
     or  rax, rdx
     ret
+disable_rtc:
+mov al, 0x0B 
+out 0x70, al ;escribo 0x0B en el puerto 0x70 → "selecciono el registro B"
+in al, 0x71  ;leo del puerto 0x71 → al = contenido actual del registro B
+             ;que el bit 6 de ese byte es el PIE, Periodic Interrupt Enable
+
+and al, 0xBF ;0xBF = 1011 1111 → AND deja todos los bits igual menos el bit 6
+mov bl,al   ; copio el valor modificado a bl para guardarlo
+
+mov al, 0x0B    ; vuelvo a poner el índice del registro B en al
+out 0x70, al    ; lo mando a 0x70 → reselecciono el registro B
+mov al, bl      ; recupero el valor modificado que había guardado
+out 0x71, al    ; lo escribo en 0x71 → reg B queda con PIE=0 (RTC ya no genera IRQ8)
+
+mov al, 0x0C    ; al = 0x0C, índice del registro C del CMOS
+out 0x70, al    ; selecciono el registro Cß
+in  al, 0x71    ; leo C y descarto el valor → esto "limpia" el flag de interrupción
+ret
