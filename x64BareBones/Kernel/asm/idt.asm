@@ -22,6 +22,7 @@ section .text
 syscall_gate_init:
     push rbp
     mov rbp, rsp
+    push rbx
     sub rsp, 16                ; space to store IDTR (10 bytes used)
     sidt [rsp]                 ; store IDTR at [rsp]: limit(2), base(8)
 
@@ -74,6 +75,7 @@ syscall_gate_init:
     SET_GATE 0x00, isr_exc_de
     SET_GATE 0x06, isr_exc_ud
     
+    pop rbx
     mov rsp, rbp
     pop rbp
     ret
