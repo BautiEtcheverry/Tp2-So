@@ -1,12 +1,12 @@
 #include "include/libasm.h"
+#include "include/memory_manager.h"
+#include "include/process.h"
+#include "include/scheduler.h"
 #include <gfxConsole.h>
 #include <lib.h>
 #include <moduleLoader.h>
 #include <naiveConsole.h>
 #include <stdint.h>
-#include "include/memory_manager.h"
-#include "include/process.h"
-#include "include/scheduler.h"
 #include <syscall.h>
 #include <videoDriver.h>
 extern void syscall_gate_init();
@@ -42,21 +42,21 @@ void init_irqs(void) {
 	picMasterMask(0xF8); // Antes era 0xF9 (IRQ0 maskeado, IRQ1 libre)
 						 // 0xF8 = 11111000 → IRQ0 (timer) e IRQ1 (teclado) demascarados
 	picSlaveMask(0xFF);
-	sti_enable(); // enable CPU interrupts
 }
 
-int idleMain(int argc, char ** argv) {
-    (void) argc; (void) argv;
-    while (1)
-        __asm__ volatile("hlt");
-    return 0;
+int idleMain(int argc, char **argv) {
+	(void) argc;
+	(void) argv;
+	while (1)
+		__asm__ volatile("hlt");
+	return 0;
 }
-int shellMain(int argc, char ** argv) {
-    (void) argc; (void) argv;
-    ((EntryPoint) shellModuleAddress)();   // 0x400000, donde loadModules monta la shell
-    return 0;
+int shellMain(int argc, char **argv) {
+	(void) argc;
+	(void) argv;
+	((EntryPoint) shellModuleAddress)(); // 0x400000, donde loadModules monta la shell
+	return 0;
 }
-
 
 void *initializeKernelBinary() {
 	char buffer[10];
@@ -137,6 +137,9 @@ int main() {
 	// Crear proceso shell (primer proceso de usuario)
 	PCB *shellProc = createProcess("sh", shellMain, 0, NULL, 0, 1);
 	addProcess(shellProc);
+
+	sti_enable(); // Enable CPU interrupts. Lo haciamos en init_irqs, pero todavía no estaba inicializado el scheduler y
+				  // se desreferenciaba un puntero con basura.
 
 	// A partir de acá el scheduler toma el control via IRQ0
 	// Este código nunca llega más allá del primer tick
