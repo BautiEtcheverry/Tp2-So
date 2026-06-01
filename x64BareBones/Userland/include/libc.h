@@ -32,7 +32,14 @@ enum
     SYS_SET_TEXT_SIZE=18,
     SYS_SET_EXC_RESUME=19,
     SYS_READ_TSC = 20,
-    SYS_EXIT = 60,    
+
+    /* Pipes */
+    SYS_PIPE_OPEN = 25,
+    SYS_PIPE_CLOSE_WRITE = 26,
+    SYS_PIPE_CLOSE_READ = 27,
+    SYS_PIPE_SET_FD = 28,
+
+    SYS_EXIT = 60,
 };
 
 // Implemented in Userland/Shell/syscall.asm to avoid inline asm ()
@@ -204,6 +211,43 @@ static inline int set_text_size(int mode) {
 
 static inline void set_exc_resume(void *addr){
     sys_1p(SYS_SET_EXC_RESUME, (uint64_t)addr);
+}
+
+/* ------------------------------------------------------------------ */
+/* Pipes                                                                */
+/* ------------------------------------------------------------------ */
+
+/*
+ * pipe_open(id):
+ *   id == -1  → pipe anónimo (para shell |), el kernel asigna un ID libre
+ *   id >= 0   → pipe nombrado (dos procesos no relacionados acuerdan este ID)
+ * Retorna el pipe_id asignado, o -1 si no hay slots libres.
+ */
+static inline int pipe_open(int id) {
+    return (int)sys_1p(SYS_PIPE_OPEN, (uint64_t)id);
+}
+
+/* Cierra el extremo escritor. El lector recibirá EOF cuando consuma lo que queda. */
+static inline void pipe_close_write(int pipe_id) {
+    sys_1p(SYS_PIPE_CLOSE_WRITE, (uint64_t)pipe_id);
+}
+
+/* Cierra el extremo lector. El escritor recibirá error (broken pipe). */
+static inline void pipe_close_read(int pipe_id) {
+    sys_1p(SYS_PIPE_CLOSE_READ, (uint64_t)pipe_id);
+}
+
+/*
+ * pipe_set_fd(pipe_id, fd_slot):
+ *   Redirige el fd_slot del proceso actual al pipe.
+ *   fd_slot=0 → stdin del proceso pasa a leer del pipe
+ *   fd_slot=1 → stdout del proceso pasa a escribir en el pipe
+ *
+ *   Después de esto, el proceso usa read(0,...)/write(1,...) normalmente
+ *   sin saber que está hablando con un pipe (transparencia).
+ */
+static inline int pipe_set_fd(int pipe_id, int fd_slot) {
+    return (int)sys_3p(SYS_PIPE_SET_FD, (uint64_t)pipe_id, (uint64_t)fd_slot, 0);
 }
 
 #endif

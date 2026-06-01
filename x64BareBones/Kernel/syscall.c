@@ -6,6 +6,7 @@
 #include "gfxConsole.h"
 #include "libasm.h"
 #include "scheduler.h"
+#include "pipe.h"
 
 extern uint64_t exc_resume_rip; 
 extern uint64_t read_tsc_asm(void);
@@ -18,59 +19,81 @@ static uint64_t sys_set_exc_resume(uint64_t rip){
     return 0;
 }
 
+static uint64_t sys_pipe_open(int id) {
+    return (uint64_t)pipe_open(id);
+}
+
+static uint64_t sys_pipe_close_write(int id) {
+    pipe_close_write(id);
+    return 0;
+}
+
+static uint64_t sys_pipe_close_read(int id) {
+    pipe_close_read(id);
+    return 0;
+}
+
+/*
+ * Redirige el fd[fd_slot] del proceso actual al pipe con pipe_id.
+ * fd_slot 0 = stdin, fd_slot 1 = stdout.
+ * Así el proceso pasa a leer/escribir del pipe sin cambiar su código.
+ */
+static uint64_t sys_pipe_set_fd(int pipe_id, int fd_slot) {
+    PCB *p = getCurrentProcess();
+    if (!p || fd_slot < 0 || fd_slot > 1)
+        return (uint64_t)-1;
+    p->fd[fd_slot] = PIPE_ID_TO_FD(pipe_id);
+    return 0;
+}
+
 static uint64_t sys_exit(void) {
     exitCurrentProcess();
     return 0;  // Deberïa ser inalcanzable
 }
 
+static uint64_t sys_write_screen(const char *buf, size_t n)
+{
+    static char kernel_buffer[8192];
+    if (n > sizeof(kernel_buffer) - 1)
+        n = sizeof(kernel_buffer) - 1;
+    memcpy(kernel_buffer, buf, n);
+    kernel_buffer[n] = '\0';
+
+    if (videoIsLFB())
+        return (uint64_t)gfx_write(kernel_buffer, n);
+
+    for (size_t i = 0; i < n; i++) {
+        char c = kernel_buffer[i];
+        if (c == '\n') ncNewline();
+        else           ncPrintChar(c);
+    }
+    return (uint64_t)n;
+}
+
 static uint64_t sys_write(uint64_t fd, const char *buf, uint64_t len)
 {
-    // Only support stdout (fd=1) and valid buffer pointer
-    if (fd != 1 || buf == 0)
+    if (buf == 0 || fd > 1)
         return 0;
 
-    // Determine number of bytes to print.
     size_t n = (size_t)len;
     if (n == 0) {
-        // Compute length of C-string up to a safe bound.
-        // This prevents infinite loops if userland passes non-null-terminated strings
         const char *p = buf;
-        size_t max = 4096; // safety bound for user strings
-        while (max-- && *p)
-            p++;
+        size_t max = 4096;
+        while (max-- && *p) p++;
         n = (size_t)(p - buf);
     }
-
     if (n == 0)
         return 0;
 
+    /* Consultar la tabla de FDs del proceso actual para saber a qué recurso
+     * apunta este descriptor. Un proceso no sabe si escribe en pantalla o pipe. */
+    PCB *current = getCurrentProcess();
+    int resource = (current != NULL) ? current->fd[(int)fd] : (int)fd;
 
-    static char kernel_buffer[8192];  // Buffer in kernel memory space
-    
-    // Limit copy size to prevent buffer overflow
-    if (n > sizeof(kernel_buffer) - 1)
-        n = sizeof(kernel_buffer) - 1;
-    
-    // Copy from userland buffer to kernel buffer
-    memcpy(kernel_buffer, buf, n);
-    kernel_buffer[n] = '\0';  // Null terminator for safety
+    if (IS_PIPE_FD(resource))
+        return (uint64_t)pipe_write(PIPE_FD_TO_ID(resource), buf, (int)n);
 
-    if (videoIsLFB())
-    {
-        // Graphics console - use kernel buffer (safe to access)
-        return (uint64_t)gfx_write(kernel_buffer, n); 
-    }
-    else
-    {
-        // VGA text fallback - use kernel buffer (safe to access)
-        for (size_t i = 0; i < n; i++)
-        {
-            char c = kernel_buffer[i]; 
-            if (c == '\n') ncNewline();
-            else           ncPrintChar(c);
-        }
-        return (uint64_t)n;
-    }
+    return sys_write_screen(buf, n);
 }
 
 static uint64_t sys_clear(void)
@@ -84,12 +107,19 @@ static uint64_t sys_clear(void)
 
 static uint64_t sys_read(uint64_t fd, char *buf, uint64_t len)
 {
-    if (fd != 0 || buf == 0 || len == 0)
+    if (fd > 1 || buf == 0 || len == 0)
         return 0;
-    // Block until at least one byte is available
-    while (kbd_available() == 0){ }
-    size_t n = kbd_read(buf, len);
-    return (uint64_t)n;
+
+    /* Consultar la tabla de FDs del proceso actual */
+    PCB *current = getCurrentProcess();
+    int resource = (current != NULL) ? current->fd[(int)fd] : (int)fd;
+
+    if (IS_PIPE_FD(resource))
+        return (uint64_t)pipe_read(PIPE_FD_TO_ID(resource), buf, (int)len);
+
+    /* Recurso 0 = teclado */
+    while (kbd_available() == 0) { }
+    return (uint64_t)kbd_read(buf, len);
 }
 
 
@@ -296,6 +326,14 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return sys_set_exc_resume(a1);
     case SYS_READ_TSC:
         return sys_read_tsc();
+    case SYS_PIPE_OPEN:
+        return sys_pipe_open((int)a1);
+    case SYS_PIPE_CLOSE_WRITE:
+        return sys_pipe_close_write((int)a1);
+    case SYS_PIPE_CLOSE_READ:
+        return sys_pipe_close_read((int)a1);
+    case SYS_PIPE_SET_FD:
+        return sys_pipe_set_fd((int)a1, (int)a2);
     default:
         return (uint64_t)-1; // ENOSYS
     }

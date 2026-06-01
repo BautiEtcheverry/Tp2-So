@@ -25,6 +25,13 @@ enum
     SYS_SET_TEXT_SIZE=18,           // Change the shell textSize (textSize command<default,large,xlarge>)         // Change the shell textSize (textSize command<default,large,xlarge>)
     SYS_SET_EXC_RESUME = 19 ,       // set exception resume point
     SYS_READ_TSC = 20,              // read Time Stamp Counter
+
+    /* Pipes — IPC */
+    SYS_PIPE_OPEN = 25,       // pipe_open(id)  → id==-1 anónimo, id>=0 nombrado
+    SYS_PIPE_CLOSE_WRITE = 26,// pipe_close_write(id)
+    SYS_PIPE_CLOSE_READ = 27, // pipe_close_read(id)
+    SYS_PIPE_SET_FD = 28,     // pipe_set_fd(pipe_id, fd_slot) — redirige fd[fd_slot] del proceso actual
+
     SYS_EXIT = 60                   // exit current process
 };
 
