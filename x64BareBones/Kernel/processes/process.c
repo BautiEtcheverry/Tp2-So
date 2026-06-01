@@ -8,8 +8,9 @@
 static uint64_t next_pid = 1;
 
 static void process_exit(void) {
-    exitCurrentProcess();
+    exitCurrentProcess(0); //Sin ningun status en particular, 0 exito.
 }
+extern void process_exit_helper(void);
 
 /* Implementada en idt.asm — construye el frame inicial para iretq.
    El formato del frame es responsabilidad exclusiva de idt.asm. */
@@ -41,8 +42,10 @@ PCB *createProcess(const char *name, ProcessMain entry, int argc, char **argv, i
 	pcb->fd[1] = 1;
 	pcb->next = (void *) 0;
 	pcb->rbp = 0;
+	pcb->exit_status = 0;
+	pcb->wait_pid    = 0;
 
-	pcb->rsp = _init_process_stack(pcb->stackBase + PROCESS_STACK_SIZE, entry, (int64_t) argc, argv, process_exit);
+	pcb->rsp = _init_process_stack(pcb->stackBase + PROCESS_STACK_SIZE, entry, (int64_t) argc, argv, process_exit_helper);
 
 	return pcb;
 }

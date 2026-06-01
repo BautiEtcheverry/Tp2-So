@@ -40,6 +40,7 @@ enum
     SYS_PIPE_SET_FD = 28,
 
     SYS_EXIT = 60,
+    SYS_WAITPID = 61
 };
 
 // Implemented in Userland/Shell/syscall.asm to avoid inline asm ()
@@ -101,6 +102,10 @@ static inline uint64_t read(int fd, char *buf, size_t len){
 
 static inline void exit(int status){
     (void)sys_3p(SYS_EXIT, (uint64_t)status, 0, 0);
+}
+
+static inline int waitpid(uint64_t pid) {
+    return (int) sys_1p(SYS_WAITPID, pid);
 }
 
 static inline void set_text_color(uint32_t rgb){

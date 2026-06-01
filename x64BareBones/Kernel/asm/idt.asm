@@ -3,11 +3,14 @@ GLOBAL isr_irq1_keyboard
 GLOBAL _irq01Handler
 GLOBAL _irq00Handler
 GLOBAL _init_process_stack
+GLOBAL process_exit_helper
+
 extern schedule
 extern isr_syscall_80
 extern keyboard_isr_handler
 extern isr_exc_de
 extern isr_exc_ud
+extern exitCurrentProcess
 
 section .bss
 
@@ -302,3 +305,7 @@ _irq01Handler:
     mov rsp, rbp
     pop rbp
     iretq
+
+process_exit_helper:
+    mov edi, eax ;Pongo el return value de la función ejecutada(el proceso) en EDI(siguiendo el estandar de la ABI System V, args en EDI, ESI, EDX, ECX, R8D, R9D)
+    jmp exitCurrentProcess

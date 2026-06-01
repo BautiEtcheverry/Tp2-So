@@ -6,25 +6,26 @@
 typedef enum { READY, RUNNING, BLOCKED, DEAD } ProcessState;
 
 typedef struct PCB {
-    uint64_t      pid;
-    char          name[64];
-    uint64_t      rsp;        // stack pointer guardado en context switch
-    uint64_t      rbp;
-    uint64_t      stackBase;
-    uint64_t      stackSize;
-    ProcessState  state;
-    int           priority;   // 0 = máxima, mayor número = menor prioridad
-    int           foreground; // 1 si es foreground de la shell
-    int           fd[2];      // fd[0]=stdin fd[1]=stdout — para pipes
-    struct PCB  * next;
+	uint64_t pid;
+	char name[64];
+	uint64_t rsp; // stack pointer guardado en context switch
+	uint64_t rbp;
+	uint64_t stackBase;
+	uint64_t stackSize;
+	ProcessState state;
+	int priority;	// 0 = máxima, mayor número = menor prioridad
+	int foreground; // 1 si es foreground de la shell
+	int fd[2];		// fd[0]=stdin fd[1]=stdout — para pipes
+	int exit_status;   // Valor de salida, siguiendo estandar POSIX. Válido cuando state == DEAD
+	uint64_t wait_pid; // PID al que está esperando, 0 si no espera a nadie
+	
+    struct PCB *next;
 } PCB;
 
-typedef int (*ProcessMain)(int argc, char ** argv);
+typedef int (*ProcessMain)(int argc, char **argv);
 
-PCB * createProcess(const char * name, ProcessMain entry,
-                    int argc, char ** argv,
-                    int priority, int foreground);
+PCB *createProcess(const char *name, ProcessMain entry, int argc, char **argv, int priority, int foreground);
 
-void  destroyProcess(PCB * pcb);
+void destroyProcess(PCB *pcb);
 
 #endif

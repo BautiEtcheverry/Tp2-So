@@ -46,9 +46,9 @@ static uint64_t sys_pipe_set_fd(int pipe_id, int fd_slot) {
     return 0;
 }
 
-static uint64_t sys_exit(void) {
-    exitCurrentProcess();
-    return 0;  // Deberïa ser inalcanzable
+static uint64_t sys_exit(uint64_t status) {
+    exitCurrentProcess((int)status);
+    return 0;  // inalcanzable
 }
 
 static uint64_t sys_write_screen(const char *buf, size_t n)
@@ -271,7 +271,9 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
     case SYS_TIME:
         return sys_time();
     case SYS_EXIT:
-        return sys_exit();
+        return sys_exit(a1);
+    case SYS_WAITPID:
+        return (uint64_t) waitForProcess(a1);
     case SYS_SET_TEXT_COLOR:
         return sys_set_text_color(a1);
     case SYS_SET_TEXT_COLOR_NAME:

@@ -13,6 +13,13 @@ void killProcess(uint64_t pid);
 void setPriority(uint64_t pid, int priority);
 PCB *getCurrentProcess();
 uint64_t getCurrentPID();
-void exitCurrentProcess(void);
+void exitCurrentProcess(int status);
+/*
+	Retorna:
+        -1 si el pid es inexistente.
+        exist_status
+
+*/
+int waitForProcess(uint64_t pid);
 
 #endif
