@@ -22,9 +22,10 @@ enum
     SYS_GFX_FILL_BLENDED = 15,      // fill rectangle with alpha blending (x,y,ptr->(w,h,color,alpha))
     SYS_GET_SCREEN_PX_WIDTH = 16,
     SYS_GET_SCREEN_PX_HEIGHT = 17,
-    SYS_SET_TEXT_SIZE=18,            // Change the shell textSize (textSize command<default,large,xlarge>)         // Change the shell textSize (textSize command<default,large,xlarge>)
-    SYS_SET_EXC_RESUME = 23 ,        // set exception resume point
-    SYS_READ_TSC = 24                 // read Time Stamp Counter
+    SYS_SET_TEXT_SIZE=18,           // Change the shell textSize (textSize command<default,large,xlarge>)         // Change the shell textSize (textSize command<default,large,xlarge>)
+    SYS_SET_EXC_RESUME = 19 ,       // set exception resume point
+    SYS_READ_TSC = 20,              // read Time Stamp Counter
+    SYS_EXIT = 60                   // exit current process
 };
 
 // Kernel-side API

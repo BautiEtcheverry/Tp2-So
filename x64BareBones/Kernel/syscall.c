@@ -1,10 +1,11 @@
 #include <stdint.h>
-#include <naiveConsole.h>
-#include <syscall.h>
-#include <keyboard.h>
-#include <videoDriver.h>
-#include <gfxConsole.h>
-#include <libasm.h>
+#include "naiveConsole.h"
+#include "syscall.h"
+#include "keyboard.h"
+#include "videoDriver.h"
+#include "gfxConsole.h"
+#include "libasm.h"
+#include "scheduler.h"
 
 extern uint64_t exc_resume_rip; 
 extern uint64_t read_tsc_asm(void);
@@ -15,6 +16,11 @@ void regs_print(void);
 static uint64_t sys_set_exc_resume(uint64_t rip){
     exc_resume_rip = rip;
     return 0;
+}
+
+static uint64_t sys_exit(void) {
+    exitCurrentProcess();
+    return 0;  // Deberïa ser inalcanzable
 }
 
 static uint64_t sys_write(uint64_t fd, const char *buf, uint64_t len)
@@ -234,6 +240,8 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return sys_read(a1, (char *)a2, a3);
     case SYS_TIME:
         return sys_time();
+    case SYS_EXIT:
+        return sys_exit();
     case SYS_SET_TEXT_COLOR:
         return sys_set_text_color(a1);
     case SYS_SET_TEXT_COLOR_NAME:
@@ -292,8 +300,6 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return (uint64_t)-1; // ENOSYS
     }
 }
-
-
 
 void syscall_init(void)
 {

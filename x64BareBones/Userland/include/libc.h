@@ -16,7 +16,6 @@ enum
     SYS_WRITE = 1,
     SYS_CLEAR = 2,
     SYS_READ = 3,
-    SYS_EXIT = 4,
     SYS_TIME = 5,
     SYS_SET_TEXT_COLOR = 6,
     SYS_SET_TEXT_COLOR_NAME = 7,
@@ -31,8 +30,9 @@ enum
     SYS_GET_SCREEN_PX_WIDTH = 16,
     SYS_GET_SCREEN_PX_HEIGHT = 17,
     SYS_SET_TEXT_SIZE=18,
-    SYS_SET_EXC_RESUME=23,
-    SYS_READ_TSC = 24
+    SYS_SET_EXC_RESUME=19,
+    SYS_READ_TSC = 20,
+    SYS_EXIT = 60,    
 };
 
 // Implemented in Userland/Shell/syscall.asm to avoid inline asm ()

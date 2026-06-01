@@ -95,7 +95,7 @@ commands[] = {
     { "trigger-div", trigger_div0_wrapper, "Trigger a division by zero exception" },
     { "trigger-ud", trigger_ud_wrapper, "Trigger a invalid opcode(undefined instruction) exception" },
     { NULL,        NULL,          NULL }
-};
+};  
 
 /*----------------------------------------*/
 

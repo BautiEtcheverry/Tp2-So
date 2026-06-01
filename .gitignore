@@ -1,8 +1,11 @@
 # Archivos objeto y binarios
 *.o
+*.a
 *.bin
 *.elf
-
+*.qcow2
+*.img
+*.vmdk
 # Carpetas de editor
 .vscode/
 *.json

@@ -8,9 +8,7 @@
 static uint64_t next_pid = 1;
 
 static void process_exit(void) {
-    killProcess(getCurrentPID());   // marca DEAD (scheduler.c ya lo tiene)
-    while (1)
-        __asm__ volatile("hlt");    // espera el próximo tick; el scheduler ya no lo elige
+    exitCurrentProcess();
 }
 
 /* Implementada en idt.asm — construye el frame inicial para iretq.
