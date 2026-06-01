@@ -6,11 +6,14 @@
 #define PROCESS_STACK_SIZE (4096 * 4)
 
 static uint64_t next_pid = 1;
+extern void process_exit_helper(void);
 
 static void process_exit(void) {
-    exitCurrentProcess(0); //Sin ningun status en particular, 0 exito.
+    int status;
+    // El return de entry() vive en EAX cuando se ejecuta su 'ret'.
+    __asm__ volatile ("movl %%eax, %0" : "=r"(status));
+    exitCurrentProcess(status);
 }
-extern void process_exit_helper(void);
 
 /* Implementada en idt.asm — construye el frame inicial para iretq.
    El formato del frame es responsabilidad exclusiva de idt.asm. */
