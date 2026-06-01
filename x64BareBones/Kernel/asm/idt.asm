@@ -124,6 +124,8 @@ _irq00Handler:
     add rsp, 8               ; descartar el código de error ficticio
     iretq
 
+
+
 ; Arma el frame inicial de un proceso nuevo en su stack, con el mismo layout
 ; que usa _irq00Handler, para que pueda ser lanzado via iretq.
 ;
@@ -131,7 +133,15 @@ _irq00Handler:
 ;                               int64_t argc, char **argv, void (*on_exit)(void))
 ; rdi=stack_top  rsi=entry  rdx=argc  rcx=argv  r8=on_exit
 ; Retorna rax = RSP inicial del proceso
-;
+
+;[stack_top - 8]:   on_exit          ; "return address" cuando entry() haga ret
+;[stack_top - 16]:  SS = 0
+;[stack_top - 24]:  RSP = (stack_top - 8)   ; apunta al slot de on_exit
+;[stack_top - 32]:  RFLAGS = 0x202
+;[stack_top - 40]:  CS = 0x08
+;[stack_top - 48]:  RIP = entry
+;[stack_top - 56]:  errcode = 0
+;[stack_top - 64..176]: 15 registros (con rdi=argc, rsi=argv)
 ; Usa r12 como puntero manual al stack del nuevo proceso — nunca modifica rsp,
 ; así el stack del kernel que llama permanece intacto.
 _init_process_stack:
@@ -148,9 +158,14 @@ _init_process_stack:
 
     ; Dirección de retorno para cuando entry() haga ret
     sub  r12, 8
-    mov  [r12], r14
+    mov  [r12], r14          ; on_exit
+    mov  r9, r12             ; r9 = &on_exit (lo guardamos para el slot RSP)
 
     ; iretq frame — mismo orden que espera iretq en 64 bits (ring0→ring0)
+    sub  r12, 8
+    mov  qword [r12], 0      ; SS = 0
+    sub  r12, 8
+    mov  [r12], r9           ; RSP = &on_exit
     sub  r12, 8
     mov  qword [r12], 0x202    ; RFLAGS (IF habilitado)
     sub  r12, 8
@@ -204,6 +219,8 @@ _init_process_stack:
     ret
 
 ; Keyboard IRQ (0x21) handler stub
+
+
 
 isr_irq1_keyboard:
 _irq01Handler:
