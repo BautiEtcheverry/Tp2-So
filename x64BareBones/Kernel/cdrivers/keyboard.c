@@ -43,8 +43,8 @@ void keyboard_isr_handler(uint8_t scancode)
         return;
     }
 
-    // If key '0' make code (0x0B), store definitive snapshot. ( 0 is used to capture registers)
-    if ((scancode == 0x0B && !shift_pressed)){
+    // If key 'F1', store definitive snapshot. ( F1 is used to capture registers)
+    if ((scancode == 0x3B)){
         for (int i = 0; i < 19; i++)
             capture_definitiva[i] = capture_provisoria[i];
            return;

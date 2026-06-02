@@ -12,7 +12,7 @@ int help(int argc, char *argv[]) {
 	};
 
 	printf("Atajos:\n");
-	printf("  '0' : captures registers (then 'regs' to print them)\n");
+	printf("  'F1' : captures registers (then 'regs' to print them)\n");
 	printf("  Tab : autocompletes written text with matching commands in the history or navigates the command "
 		   "history if no text is written \n");
 
