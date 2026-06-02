@@ -2,7 +2,10 @@
 include ../Makefile.inc
 
 MODULE=0000-shell.bin
-SOURCES=$(wildcard [^_]*.c) tests/test_util.c tests/syscall.c tests/test_mm.c
+SOURCES=$(wildcard [^_]*.c) \
+        $(wildcard core/*.c) \
+        $(wildcard commands/*.c) $(wildcard commands/builtins/*.c) $(wildcard commands/programs/*.c) \
+        tests/test_util.c tests/syscall.c tests/test_mm.c
 LIBS=../asm/uland_lib_syscalls.a
 all: $(MODULE)
 

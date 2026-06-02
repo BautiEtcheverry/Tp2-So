@@ -66,6 +66,18 @@ static size_t u_itoa(long long x, char *out)
     }
     return n;
 }
+uint64_t str_to_uint(const char *s) {
+    uint64_t v = 0;
+    if (!s)
+        return 0;
+    while (*s == ' ')              // saltar espacios iniciales
+        s++;
+    while (*s >= '0' && *s <= '9') {
+        v = v * 10 + (uint64_t)(*s - '0');
+        s++;
+    }
+    return v;
+}
 
 // Public API
 void putChar(char c){
@@ -319,4 +331,19 @@ int scanf(const char *fmt, ...)
     }
     va_end(ap);
     return assigned;
+}
+char tolower_c(char c) {
+	if (c >= 'A' && c <= 'Z')
+		return (char) (c - 'A' + 'a');
+	return c;
+}
+
+int streq_nocase(const char *a, const char *b) {
+	while (*a && *b) {
+		if (tolower_c(*a) != tolower_c(*b))
+			return 0;
+		a++;
+		b++;
+	}
+	return *a == *b;
 }
