@@ -7,9 +7,6 @@
 
 static uint64_t next_pid = 1;
 
-static void process_exit(void) {
-    exitCurrentProcess(0); //Sin ningun status en particular, 0 exito.
-}
 extern void process_exit_helper(void);
 
 /* Implementada en idt.asm — construye el frame inicial para iretq.

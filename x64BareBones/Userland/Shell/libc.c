@@ -81,86 +81,94 @@ int putchar(int ch){
     return (int)(unsigned char)c;
 }
 
+static void u_pad(int n, char c) {
+    while (n-- > 0) putChar(c);
+}
+
 static int u_vprintf(const char *fmt, va_list ap)
 {
     int printed = 0;
     for (const char *p = fmt; *p; ++p)
     {
-        if (*p != '%')
-        {
-            putChar(*p);
-            printed++;
-            continue;
-        }
+        if (*p != '%') { putChar(*p); printed++; continue; }
         ++p;
-        if (!*p)
-            break;
+        if (!*p) break;
+
+        /* Flags */
+        int left = 0;
+        if (*p == '-') { left = 1; ++p; }
+
+        /* Width */
+        int width = 0;
+        while (*p >= '0' && *p <= '9') { width = width * 10 + (*p - '0'); ++p; }
+
+        /* Length modifier: l or ll */
+        int lng = 0;
+        if (*p == 'l') { lng = 1; ++p; }
+        if (*p == 'l') { lng = 2; ++p; }
 
         char buf[32];
         buf[0] = 0;
+
         switch (*p)
         {
-        case '%':
-            putChar('%');
-            printed++;
-            break;
-        case 'c':
-        {
+        case '%': putChar('%'); printed++; break;
+        case 'c': {
             int c = va_arg(ap, int);
-            putChar((char)c);
-            printed++;
+            if (!left) u_pad(width - 1, ' ');
+            putChar((char)c); printed++;
+            if (left)  u_pad(width - 1, ' ');
+            break;
         }
-        break;
-        case 's':
-        {
+        case 's': {
             const char *s = va_arg(ap, const char *);
-            size_t n = u_strlen(s);
-            write(1, s, n);
-            printed += (int)n;
+            if (!s) s = "(null)";
+            int n = (int)u_strlen(s);
+            if (!left) u_pad(width - n, ' ');
+            write(1, s, (size_t)n); printed += n;
+            if (left)  u_pad(width - n, ' ');
+            break;
         }
-        break;
-        case 'd':
-        case 'i':
-        {
-            // default argument promotions: %d/%i expect 'int'
-            int v = va_arg(ap, int);
-            size_t n = u_itoa((long long)v, buf);
-            write(1, buf, n);
-            printed += (int)n;
+        case 'd': case 'i': {
+            long long v = (lng >= 2) ? va_arg(ap, long long)  :
+                          (lng == 1) ? (long long)va_arg(ap, long) :
+                                       (long long)va_arg(ap, int);
+            int n = (int)u_itoa(v, buf);
+            if (!left) u_pad(width - n, ' ');
+            write(1, buf, (size_t)n); printed += n;
+            if (left)  u_pad(width - n, ' ');
+            break;
         }
-        break;
-        case 'u':
-        {
-            // %u expects 'unsigned int'
-            unsigned int v = va_arg(ap, unsigned int);
-            size_t n = u_utoa((unsigned long long)v, 10, buf);
-            write(1, buf, n);
-            printed += (int)n;
+        case 'u': {
+            unsigned long long v = (lng >= 2) ? va_arg(ap, unsigned long long)  :
+                                   (lng == 1) ? (unsigned long long)va_arg(ap, unsigned long) :
+                                                (unsigned long long)va_arg(ap, unsigned int);
+            int n = (int)u_utoa(v, 10, buf);
+            if (!left) u_pad(width - n, ' ');
+            write(1, buf, (size_t)n); printed += n;
+            if (left)  u_pad(width - n, ' ');
+            break;
         }
-        break;
-        case 'x':
-        {
-            // %x expects 'unsigned int'
-            unsigned int v = va_arg(ap, unsigned int);
-            size_t n = u_utoa((unsigned long long)v, 16, buf);
-            write(1, buf, n);
-            printed += (int)n;
+        case 'x': {
+            unsigned long long v = (lng >= 2) ? va_arg(ap, unsigned long long) :
+                                   (lng == 1) ? (unsigned long long)va_arg(ap, unsigned long) :
+                                                (unsigned long long)va_arg(ap, unsigned int);
+            int n = (int)u_utoa(v, 16, buf);
+            if (!left) u_pad(width - n, ' ');
+            write(1, buf, (size_t)n); printed += n;
+            if (left)  u_pad(width - n, ' ');
+            break;
         }
-        break;
-        case 'p':
-        {
-            // %p expects a pointer; print as hex of uintptr_t
+        case 'p': {
             void *pv = va_arg(ap, void *);
-            unsigned long long v = (unsigned long long)(uintptr_t)pv;
-            size_t n = u_utoa(v, 16, buf);
-            write(1, buf, n);
-            printed += (int)n;
+            int n = (int)u_utoa((unsigned long long)(uintptr_t)pv, 16, buf);
+            if (!left) u_pad(width - n, ' ');
+            write(1, buf, (size_t)n); printed += n;
+            if (left)  u_pad(width - n, ' ');
+            break;
         }
-        break;
-        default: // unknown specifier, print literally
-            putChar('%');
-            putChar(*p);
-            printed += 2;
+        default:
+            putChar('%'); putChar(*p); printed += 2;
             break;
         }
     }
