@@ -3,6 +3,14 @@
 #include "syscall.h"
 #include "keyboard.h"
 #include "videoDriver.h"
+/* Debe coincidir con ProcessInfo en Userland/include/libc.h */
+typedef struct {
+    uint64_t pid;
+    char     name[64];
+    int      state;
+    int      priority;
+    int      foreground;
+} ProcessInfo;
 #include "gfxConsole.h"
 #include "libasm.h"
 #include "scheduler.h"
@@ -258,6 +266,82 @@ static uint64_t sys_set_text_size(uint64_t mode)
     return (uint64_t)-1;
 }
 
+/* ---------- syscalls de gestión de procesos ---------- */
+
+static uint64_t sys_create_process(uint64_t fn, uint64_t argc, uint64_t argv) {
+    PCB *pcb = createProcess("proc", (ProcessMain)fn, (int)argc, (char **)argv, 0, 0);
+    if (!pcb)
+        return (uint64_t)-1;
+    addProcess(pcb);
+    return (uint64_t)pcb->pid;
+}
+
+static uint64_t sys_getpid(void) {
+    return getCurrentPID();
+}
+
+static uint64_t sys_kill(uint64_t pid) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state == DEAD)
+        return (uint64_t)-1;
+    killProcess(pid);
+    return 0;
+}
+
+static uint64_t sys_block(uint64_t pid) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state == DEAD)
+        return (uint64_t)-1;
+    blockProcess(pid);
+    return 0;
+}
+
+static uint64_t sys_unblock(uint64_t pid) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state != BLOCKED)
+        return (uint64_t)-1;
+    unblockProcess(pid);
+    return 0;
+}
+
+static uint64_t sys_nice(uint64_t pid, uint64_t priority) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state == DEAD)
+        return (uint64_t)-1;
+    setPriority(pid, (int)priority);
+    return 0;
+}
+
+/*
+ * Llena buf[] con información de hasta max procesos.
+ * Retorna la cantidad real de procesos en la lista.
+ * Usado por el comando ps de la shell.
+ */
+static uint64_t sys_get_processes(ProcessInfo *buf, uint64_t max) {
+    PCB *head = getHeadProcess();
+    if (!head || !buf || max == 0)
+        return 0;
+    uint64_t count = 0;
+    PCB *p = head;
+    do {
+        if (count < max) {
+            buf[count].pid        = p->pid;
+            buf[count].state      = (int)p->state;
+            buf[count].priority   = p->priority;
+            buf[count].foreground = p->foreground;
+            int i;
+            for (i = 0; i < 63 && p->name[i]; i++)
+                buf[count].name[i] = p->name[i];
+            buf[count].name[i] = '\0';
+        }
+        count++;
+        p = p->next;
+    } while (p != head);
+    return count;
+}
+
+/* ----------------------------------------------------- */
+
 uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
 {
     switch (id)
@@ -336,6 +420,20 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return sys_pipe_close_read((int)a1);
     case SYS_PIPE_SET_FD:
         return sys_pipe_set_fd((int)a1, (int)a2);
+    case SYS_CREATE_PROCESS:
+        return sys_create_process(a1, a2, a3);
+    case SYS_GETPID:
+        return sys_getpid();
+    case SYS_KILL:
+        return sys_kill(a1);
+    case SYS_BLOCK:
+        return sys_block(a1);
+    case SYS_UNBLOCK:
+        return sys_unblock(a1);
+    case SYS_NICE:
+        return sys_nice(a1, a2);
+    case SYS_GET_PROCESSES:
+        return sys_get_processes((ProcessInfo *)a1, a2);
     default:
         return (uint64_t)-1; // ENOSYS
     }

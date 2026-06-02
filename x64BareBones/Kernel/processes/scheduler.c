@@ -11,7 +11,6 @@
  */
 #define MAX_QUANTUMS 4
 
-PCB * findProcess(uint64_t pid);
 static void wakeWaiters(uint64_t dead_pid);
 
 static PCB *head = NULL;
@@ -167,7 +166,10 @@ static void wakeWaiters(uint64_t dead_pid) {
 		p = p->next;
 	} while (p != head);
 }
-// Busca un proceso dado en la lista de PCBs
+PCB *getHeadProcess(void) {
+	return head;
+}
+
 PCB *findProcess(uint64_t pid) {
 	PCB *p = head;
 	if (!p)

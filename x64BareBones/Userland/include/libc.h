@@ -39,6 +39,15 @@ enum
     SYS_PIPE_CLOSE_READ = 27,
     SYS_PIPE_SET_FD = 28,
 
+    /* Gestión de procesos */
+    SYS_CREATE_PROCESS = 29,
+    SYS_GETPID = 30,
+    SYS_KILL = 31,
+    SYS_BLOCK = 32,
+    SYS_UNBLOCK = 33,
+    SYS_NICE = 34,
+    SYS_GET_PROCESSES = 35,
+
     SYS_EXIT = 60,
     SYS_WAITPID = 61
 };
@@ -253,6 +262,54 @@ static inline void pipe_close_read(int pipe_id) {
  */
 static inline int pipe_set_fd(int pipe_id, int fd_slot) {
     return (int)sys_3p(SYS_PIPE_SET_FD, (uint64_t)pipe_id, (uint64_t)fd_slot, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Gestión de procesos                                                  */
+/* ------------------------------------------------------------------ */
+
+/* Información de un proceso — debe coincidir con la definición en Kernel/syscall.c */
+typedef struct {
+    uint64_t pid;
+    char     name[64];
+    int      state;      /* 0=READY 1=RUNNING 2=BLOCKED 3=DEAD */
+    int      priority;
+    int      foreground;
+} ProcessInfo;
+
+/* Crea un proceso nuevo que ejecuta fn(argc, argv). Retorna el PID o -1. */
+static inline int64_t create_process(int (*fn)(int, char**), int argc, char **argv) {
+    return (int64_t)sys_3p(SYS_CREATE_PROCESS, (uint64_t)fn, (uint64_t)argc, (uint64_t)argv);
+}
+
+/* PID del proceso actual. */
+static inline uint64_t getpid(void) {
+    return sys_0p(SYS_GETPID);
+}
+
+/* Mata el proceso con ese PID. Retorna 0 o -1. */
+static inline int kill(uint64_t pid) {
+    return (int)sys_1p(SYS_KILL, pid);
+}
+
+/* Bloquea el proceso con ese PID. Retorna 0 o -1. */
+static inline int block(uint64_t pid) {
+    return (int)sys_1p(SYS_BLOCK, pid);
+}
+
+/* Desbloquea el proceso con ese PID. Retorna 0 o -1. */
+static inline int unblock(uint64_t pid) {
+    return (int)sys_1p(SYS_UNBLOCK, pid);
+}
+
+/* Cambia la prioridad del proceso (0=max). Retorna 0 o -1. */
+static inline int nice(uint64_t pid, int priority) {
+    return (int)sys_3p(SYS_NICE, pid, (uint64_t)priority, 0);
+}
+
+/* Llena buf[] con info de hasta max procesos. Retorna la cantidad total. */
+static inline int get_processes(ProcessInfo *buf, int max) {
+    return (int)sys_3p(SYS_GET_PROCESSES, (uint64_t)buf, (uint64_t)max, 0);
 }
 
 #endif
