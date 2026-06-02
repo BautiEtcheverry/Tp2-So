@@ -25,6 +25,11 @@ enum
     SYS_SET_TEXT_SIZE=18,           // Change the shell textSize (textSize command<default,large,xlarge>)
     SYS_SET_EXC_RESUME = 19,        // set exception resume point
     SYS_READ_TSC = 20,              // read Time Stamp Counter
+    
+    /*Memoria*/
+    SYS_MALLOC = 21,                // malloc(size) -> puntero (0 si falla)
+    SYS_FREE = 22,                  
+    SYS_MEM_INFO = 23,              // mem_info(mem_info_t * dst) llena el struct
 
     /* Pipes — IPC */
     SYS_PIPE_OPEN = 25,        // pipe_open(id)  → id==-1 anónimo, id>=0 nombrado

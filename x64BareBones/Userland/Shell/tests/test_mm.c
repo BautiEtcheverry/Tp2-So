@@ -1,9 +1,9 @@
 
 #include "../../include/libc.h"
-// #include "test_util.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "test_util.h"
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
 
 #define MAX_BLOCKS 128
 

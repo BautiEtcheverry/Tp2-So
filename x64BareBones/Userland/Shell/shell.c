@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "../include/libc.h"
+#include "tests/tests.h"
 
 #define CMD_MAX_LEN 64
 static uint32_t current_text_fg = 0xFFFFFF;
@@ -103,7 +104,7 @@ static int cmd_unblock(int argc, char *argv[]) {
 }
 
 /* Proceso que corre indefinidamente — útil para probar scheduler */
-int endless_loop(int argc, char *argv[]) {
+int loop_proc(int argc, char *argv[]) {
     (void)argc; (void)argv;
     while (1)
         __asm__ volatile("hlt");
@@ -112,7 +113,7 @@ int endless_loop(int argc, char *argv[]) {
 
 static int cmd_loop(int argc, char *argv[]) {
     (void)argc; (void)argv;
-    int64_t pid = create_process(endless_loop, 0, (char*[]){0});
+    int64_t pid = create_process(loop_proc, 0, (char*[]){0});
     if (pid < 0) { printf("loop: no se pudo crear el proceso\n"); return 1; }
     printf("loop: proceso creado con PID %lld\n", (long long)pid);
     return 0;

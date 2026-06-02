@@ -3,6 +3,8 @@
 #include "syscall.h"
 #include "keyboard.h"
 #include "videoDriver.h"
+#include "memory_manager.h"
+
 /* Debe coincidir con ProcessInfo en Userland/include/libc.h */
 typedef struct {
     uint64_t pid;
@@ -434,6 +436,18 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return sys_nice(a1, a2);
     case SYS_GET_PROCESSES:
         return sys_get_processes((ProcessInfo *)a1, a2);
+    case SYS_MALLOC:
+        return (uint64_t) sys_malloc((size_t) a1);
+    case SYS_FREE:
+        sys_free((void *) a1);
+        return 0;
+    case SYS_MEM_INFO: {
+        mem_info_t *dst = (mem_info_t *) a1;
+        if (dst == 0)
+            return (uint64_t) -1;
+        *dst = sys_mem_info();
+        return 0;
+    }
     default:
         return (uint64_t)-1; // ENOSYS
     }

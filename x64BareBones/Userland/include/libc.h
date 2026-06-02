@@ -8,6 +8,13 @@
     Making static inline functions(small ones) essentialy gives each file that includes this header a copy of the function, which can be inlined by the compiler.
     More info about inline functions in C: https://wiki.osdev.org/index.php?search=Inline+Functions+in+C&title=Special%3ASearch&profile=default&fulltext=1
 */
+
+typedef struct {
+    size_t total_memory;
+    size_t used_memory;
+    size_t free_memory;
+    size_t allocated_blocks;
+} mem_info_t;
 /*
     Syscall numbers must match the ones in the kernel in the file: /x64BareBones/Kernel/include/syscall.h
 */
@@ -32,6 +39,11 @@ enum
     SYS_SET_TEXT_SIZE=18,
     SYS_SET_EXC_RESUME=19,
     SYS_READ_TSC = 20,
+
+    /*Memoria*/
+    SYS_MALLOC = 21,                // malloc(size) -> puntero (0 si falla)
+    SYS_FREE = 22,                  
+    SYS_MEM_INFO = 23,  
 
     /* Pipes */
     SYS_PIPE_OPEN = 25,
@@ -83,6 +95,7 @@ static inline int get_screen_px_height(void){
     return (int)sys_3p(SYS_GET_SCREEN_PX_HEIGHT, 0, 0, 0);
 }
 /*-----------------------------------------------------------*/
+int printf(const char *fmt, ...);
 
 static inline uint64_t write(int fd, const char *buf, size_t len){
     return sys_3p(SYS_WRITE, (uint64_t)fd, (uint64_t)buf, (uint64_t)len);
@@ -312,4 +325,15 @@ static inline int get_processes(ProcessInfo *buf, int max) {
     return (int)sys_3p(SYS_GET_PROCESSES, (uint64_t)buf, (uint64_t)max, 0);
 }
 
+static inline void *myMalloc(uint64_t size){
+    return (void *) sys_1p(SYS_MALLOC, size);
+}
+
+static inline void myFree(void *ptr){
+    (void) sys_1p(SYS_FREE, (uint64_t) ptr);
+}
+
+static inline int mem_info(mem_info_t *dst){
+    return (int) sys_1p(SYS_MEM_INFO, (uint64_t) dst);
+}
 #endif

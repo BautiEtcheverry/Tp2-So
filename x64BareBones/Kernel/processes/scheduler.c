@@ -154,25 +154,6 @@ void exitCurrentProcess(int status) {
 		__asm__ volatile("hlt"); // Espera hasta que el proximo tick del timer y despues no se lo vuelve a elgir.
 }
 
-int waitForProcess(uint64_t pid) {
-	PCB *target = findProcess(pid);
-	if (!target)
-		return -1;
-	if (target->state == DEAD)
-		return target->exit_status;
-
-	PCB *cur = getCurrentProcess();
-	if (!cur || cur->pid == pid)
-		return -1;
-
-	cur->wait_pid = pid;
-	cur->state = BLOCKED;
-	quantums_remaining = 0;
-	while (((volatile ProcessState) cur->state) == BLOCKED)
-		__asm__ volatile("hlt");
-
-	return target->exit_status;
-}
 
 /*-----------------Helpers para WaitPid-----------------*/
 static void wakeWaiters(uint64_t dead_pid) {
