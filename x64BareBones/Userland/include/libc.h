@@ -32,7 +32,23 @@ enum
     SYS_SET_TEXT_SIZE=18,
     SYS_SET_EXC_RESUME=19,
     SYS_READ_TSC = 20,
-    SYS_EXIT = 60,    
+
+    /* Pipes */
+    SYS_PIPE_OPEN = 25,
+    SYS_PIPE_CLOSE_WRITE = 26,
+    SYS_PIPE_CLOSE_READ = 27,
+    SYS_PIPE_SET_FD = 28,
+
+    /* Gestión de procesos */
+    SYS_CREATE_PROCESS = 29,
+    SYS_GETPID = 30,
+    SYS_KILL = 31,
+    SYS_BLOCK = 32,
+    SYS_UNBLOCK = 33,
+    SYS_NICE = 34,
+    SYS_GET_PROCESSES = 35,
+
+    SYS_EXIT = 60,
     SYS_WAITPID = 61
 };
 
@@ -209,6 +225,91 @@ static inline int set_text_size(int mode) {
 
 static inline void set_exc_resume(void *addr){
     sys_1p(SYS_SET_EXC_RESUME, (uint64_t)addr);
+}
+
+/* ------------------------------------------------------------------ */
+/* Pipes                                                                */
+/* ------------------------------------------------------------------ */
+
+/*
+ * pipe_open(id):
+ *   id == -1  → pipe anónimo (para shell |), el kernel asigna un ID libre
+ *   id >= 0   → pipe nombrado (dos procesos no relacionados acuerdan este ID)
+ * Retorna el pipe_id asignado, o -1 si no hay slots libres.
+ */
+static inline int pipe_open(int id) {
+    return (int)sys_1p(SYS_PIPE_OPEN, (uint64_t)id);
+}
+
+/* Cierra el extremo escritor. El lector recibirá EOF cuando consuma lo que queda. */
+static inline void pipe_close_write(int pipe_id) {
+    sys_1p(SYS_PIPE_CLOSE_WRITE, (uint64_t)pipe_id);
+}
+
+/* Cierra el extremo lector. El escritor recibirá error (broken pipe). */
+static inline void pipe_close_read(int pipe_id) {
+    sys_1p(SYS_PIPE_CLOSE_READ, (uint64_t)pipe_id);
+}
+
+/*
+ * pipe_set_fd(pipe_id, fd_slot):
+ *   Redirige el fd_slot del proceso actual al pipe.
+ *   fd_slot=0 → stdin del proceso pasa a leer del pipe
+ *   fd_slot=1 → stdout del proceso pasa a escribir en el pipe
+ *
+ *   Después de esto, el proceso usa read(0,...)/write(1,...) normalmente
+ *   sin saber que está hablando con un pipe (transparencia).
+ */
+static inline int pipe_set_fd(int pipe_id, int fd_slot) {
+    return (int)sys_3p(SYS_PIPE_SET_FD, (uint64_t)pipe_id, (uint64_t)fd_slot, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Gestión de procesos                                                  */
+/* ------------------------------------------------------------------ */
+
+/* Información de un proceso — debe coincidir con la definición en Kernel/syscall.c */
+typedef struct {
+    uint64_t pid;
+    char     name[64];
+    int      state;      /* 0=READY 1=RUNNING 2=BLOCKED 3=DEAD */
+    int      priority;
+    int      foreground;
+} ProcessInfo;
+
+/* Crea un proceso nuevo que ejecuta fn(argc, argv). Retorna el PID o -1. */
+static inline int64_t create_process(int (*fn)(int, char**), int argc, char **argv) {
+    return (int64_t)sys_3p(SYS_CREATE_PROCESS, (uint64_t)fn, (uint64_t)argc, (uint64_t)argv);
+}
+
+/* PID del proceso actual. */
+static inline uint64_t getpid(void) {
+    return sys_0p(SYS_GETPID);
+}
+
+/* Mata el proceso con ese PID. Retorna 0 o -1. */
+static inline int kill(uint64_t pid) {
+    return (int)sys_1p(SYS_KILL, pid);
+}
+
+/* Bloquea el proceso con ese PID. Retorna 0 o -1. */
+static inline int block(uint64_t pid) {
+    return (int)sys_1p(SYS_BLOCK, pid);
+}
+
+/* Desbloquea el proceso con ese PID. Retorna 0 o -1. */
+static inline int unblock(uint64_t pid) {
+    return (int)sys_1p(SYS_UNBLOCK, pid);
+}
+
+/* Cambia la prioridad del proceso (0=max). Retorna 0 o -1. */
+static inline int nice(uint64_t pid, int priority) {
+    return (int)sys_3p(SYS_NICE, pid, (uint64_t)priority, 0);
+}
+
+/* Llena buf[] con info de hasta max procesos. Retorna la cantidad total. */
+static inline int get_processes(ProcessInfo *buf, int max) {
+    return (int)sys_3p(SYS_GET_PROCESSES, (uint64_t)buf, (uint64_t)max, 0);
 }
 
 #endif

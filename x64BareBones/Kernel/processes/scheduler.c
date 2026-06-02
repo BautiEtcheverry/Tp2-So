@@ -11,7 +11,6 @@
  */
 #define MAX_QUANTUMS 4
 
-PCB * findProcess(uint64_t pid);
 static void wakeWaiters(uint64_t dead_pid);
 
 static PCB *head = NULL;
@@ -113,6 +112,7 @@ void killProcess(uint64_t pid) {
 			p->state = DEAD;
 			if (p == current)
 				quantums_remaining = 0;
+			wakeWaiters(pid);
 			return;
 		}
 		p = p->next;
@@ -187,7 +187,10 @@ static void wakeWaiters(uint64_t dead_pid) {
 		p = p->next;
 	} while (p != head);
 }
-// Busca un proceso dado en la lista de PCBs
+PCB *getHeadProcess(void) {
+	return head;
+}
+
 PCB *findProcess(uint64_t pid) {
 	PCB *p = head;
 	if (!p)
@@ -198,4 +201,64 @@ PCB *findProcess(uint64_t pid) {
 		p = p->next;
 	} while (p != head);
 	return NULL;
+}
+
+
+/*
+ * Saca el proceso DEAD de la lista circular y libera su memoria.
+ * Solo opera sobre procesos en estado DEAD. No toca al idle.
+ */
+void reapProcess(uint64_t pid) {
+	PCB *target = findProcess(pid);
+	if (!target || target == idle_proc || target->state != DEAD)
+		return;
+
+	/* Encontrar el nodo anterior en la lista circular */
+	PCB *prev = head;
+	while (prev->next != target) {
+		prev = prev->next;
+		if (prev == head)
+			return; /* no encontrado, no debería pasar */
+	}
+
+	/* Desconectar de la lista */
+	prev->next = target->next;
+	if (head == target)
+		head = target->next;
+	if (current == target) {
+		current = NULL;
+		quantums_remaining = 0;
+	}
+
+	destroyProcess(target);
+}
+
+int waitForProcess(uint64_t pid) {
+	PCB *target = findProcess(pid);
+	if (!target)
+		return -1;
+
+	PCB *cur = getCurrentProcess();
+	if (!cur || cur->pid == pid)
+		return -1;
+
+	/* Si ya murió, reapear y retornar su exit status */
+	if (target->state == DEAD) {
+		int status = target->exit_status;
+		reapProcess(pid);
+		return status;
+	}
+
+	/* Bloquearse hasta que el proceso objetivo muera */
+	cur->wait_pid = pid;
+	cur->state = BLOCKED;
+	quantums_remaining = 0;
+	while (((volatile ProcessState) cur->state) == BLOCKED)
+		__asm__ volatile("hlt");
+
+	/* El proceso murió y wakeWaiters nos desbloqueó —
+	 * target sigue válido porque aún no fue reaped */
+	int status = target->exit_status;
+	reapProcess(pid);
+	return status;
 }

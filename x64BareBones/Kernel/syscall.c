@@ -3,9 +3,18 @@
 #include "syscall.h"
 #include "keyboard.h"
 #include "videoDriver.h"
+/* Debe coincidir con ProcessInfo en Userland/include/libc.h */
+typedef struct {
+    uint64_t pid;
+    char     name[64];
+    int      state;
+    int      priority;
+    int      foreground;
+} ProcessInfo;
 #include "gfxConsole.h"
 #include "libasm.h"
 #include "scheduler.h"
+#include "pipe.h"
 
 extern uint64_t exc_resume_rip; 
 extern uint64_t read_tsc_asm(void);
@@ -18,59 +27,81 @@ static uint64_t sys_set_exc_resume(uint64_t rip){
     return 0;
 }
 
+static uint64_t sys_pipe_open(int id) {
+    return (uint64_t)pipe_open(id);
+}
+
+static uint64_t sys_pipe_close_write(int id) {
+    pipe_close_write(id);
+    return 0;
+}
+
+static uint64_t sys_pipe_close_read(int id) {
+    pipe_close_read(id);
+    return 0;
+}
+
+/*
+ * Redirige el fd[fd_slot] del proceso actual al pipe con pipe_id.
+ * fd_slot 0 = stdin, fd_slot 1 = stdout.
+ * Así el proceso pasa a leer/escribir del pipe sin cambiar su código.
+ */
+static uint64_t sys_pipe_set_fd(int pipe_id, int fd_slot) {
+    PCB *p = getCurrentProcess();
+    if (!p || fd_slot < 0 || fd_slot > 1)
+        return (uint64_t)-1;
+    p->fd[fd_slot] = PIPE_ID_TO_FD(pipe_id);
+    return 0;
+}
+
 static uint64_t sys_exit(uint64_t status) {
-    exitCurrentProcess((int) status);
-    return 0;  // Deberïa ser inalcanzable
+    exitCurrentProcess((int)status);
+    return 0;  // inalcanzable
+}
+
+static uint64_t sys_write_screen(const char *buf, size_t n)
+{
+    static char kernel_buffer[8192];
+    if (n > sizeof(kernel_buffer) - 1)
+        n = sizeof(kernel_buffer) - 1;
+    memcpy(kernel_buffer, buf, n);
+    kernel_buffer[n] = '\0';
+
+    if (videoIsLFB())
+        return (uint64_t)gfx_write(kernel_buffer, n);
+
+    for (size_t i = 0; i < n; i++) {
+        char c = kernel_buffer[i];
+        if (c == '\n') ncNewline();
+        else           ncPrintChar(c);
+    }
+    return (uint64_t)n;
 }
 
 static uint64_t sys_write(uint64_t fd, const char *buf, uint64_t len)
 {
-    // Only support stdout (fd=1) and valid buffer pointer
-    if (fd != 1 || buf == 0)
+    if (buf == 0 || fd > 1)
         return 0;
 
-    // Determine number of bytes to print.
     size_t n = (size_t)len;
     if (n == 0) {
-        // Compute length of C-string up to a safe bound.
-        // This prevents infinite loops if userland passes non-null-terminated strings
         const char *p = buf;
-        size_t max = 4096; // safety bound for user strings
-        while (max-- && *p)
-            p++;
+        size_t max = 4096;
+        while (max-- && *p) p++;
         n = (size_t)(p - buf);
     }
-
     if (n == 0)
         return 0;
 
+    /* Consultar la tabla de FDs del proceso actual para saber a qué recurso
+     * apunta este descriptor. Un proceso no sabe si escribe en pantalla o pipe. */
+    PCB *current = getCurrentProcess();
+    int resource = (current != NULL) ? current->fd[(int)fd] : (int)fd;
 
-    static char kernel_buffer[8192];  // Buffer in kernel memory space
-    
-    // Limit copy size to prevent buffer overflow
-    if (n > sizeof(kernel_buffer) - 1)
-        n = sizeof(kernel_buffer) - 1;
-    
-    // Copy from userland buffer to kernel buffer
-    memcpy(kernel_buffer, buf, n);
-    kernel_buffer[n] = '\0';  // Null terminator for safety
+    if (IS_PIPE_FD(resource))
+        return (uint64_t)pipe_write(PIPE_FD_TO_ID(resource), buf, (int)n);
 
-    if (videoIsLFB())
-    {
-        // Graphics console - use kernel buffer (safe to access)
-        return (uint64_t)gfx_write(kernel_buffer, n); 
-    }
-    else
-    {
-        // VGA text fallback - use kernel buffer (safe to access)
-        for (size_t i = 0; i < n; i++)
-        {
-            char c = kernel_buffer[i]; 
-            if (c == '\n') ncNewline();
-            else           ncPrintChar(c);
-        }
-        return (uint64_t)n;
-    }
+    return sys_write_screen(buf, n);
 }
 
 static uint64_t sys_clear(void)
@@ -84,12 +115,19 @@ static uint64_t sys_clear(void)
 
 static uint64_t sys_read(uint64_t fd, char *buf, uint64_t len)
 {
-    if (fd != 0 || buf == 0 || len == 0)
+    if (fd > 1 || buf == 0 || len == 0)
         return 0;
-    // Block until at least one byte is available
-    while (kbd_available() == 0){ }
-    size_t n = kbd_read(buf, len);
-    return (uint64_t)n;
+
+    /* Consultar la tabla de FDs del proceso actual */
+    PCB *current = getCurrentProcess();
+    int resource = (current != NULL) ? current->fd[(int)fd] : (int)fd;
+
+    if (IS_PIPE_FD(resource))
+        return (uint64_t)pipe_read(PIPE_FD_TO_ID(resource), buf, (int)len);
+
+    /* Recurso 0 = teclado */
+    while (kbd_available() == 0) { }
+    return (uint64_t)kbd_read(buf, len);
 }
 
 
@@ -228,6 +266,82 @@ static uint64_t sys_set_text_size(uint64_t mode)
     return (uint64_t)-1;
 }
 
+/* ---------- syscalls de gestión de procesos ---------- */
+
+static uint64_t sys_create_process(uint64_t fn, uint64_t argc, uint64_t argv) {
+    PCB *pcb = createProcess("proc", (ProcessMain)fn, (int)argc, (char **)argv, 0, 0);
+    if (!pcb)
+        return (uint64_t)-1;
+    addProcess(pcb);
+    return (uint64_t)pcb->pid;
+}
+
+static uint64_t sys_getpid(void) {
+    return getCurrentPID();
+}
+
+static uint64_t sys_kill(uint64_t pid) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state == DEAD)
+        return (uint64_t)-1;
+    killProcess(pid);
+    return 0;
+}
+
+static uint64_t sys_block(uint64_t pid) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state == DEAD)
+        return (uint64_t)-1;
+    blockProcess(pid);
+    return 0;
+}
+
+static uint64_t sys_unblock(uint64_t pid) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state != BLOCKED)
+        return (uint64_t)-1;
+    unblockProcess(pid);
+    return 0;
+}
+
+static uint64_t sys_nice(uint64_t pid, uint64_t priority) {
+    PCB *p = findProcess(pid);
+    if (!p || p->state == DEAD)
+        return (uint64_t)-1;
+    setPriority(pid, (int)priority);
+    return 0;
+}
+
+/*
+ * Llena buf[] con información de hasta max procesos.
+ * Retorna la cantidad real de procesos en la lista.
+ * Usado por el comando ps de la shell.
+ */
+static uint64_t sys_get_processes(ProcessInfo *buf, uint64_t max) {
+    PCB *head = getHeadProcess();
+    if (!head || !buf || max == 0)
+        return 0;
+    uint64_t count = 0;
+    PCB *p = head;
+    do {
+        if (count < max) {
+            buf[count].pid        = p->pid;
+            buf[count].state      = (int)p->state;
+            buf[count].priority   = p->priority;
+            buf[count].foreground = p->foreground;
+            int i;
+            for (i = 0; i < 63 && p->name[i]; i++)
+                buf[count].name[i] = p->name[i];
+            buf[count].name[i] = '\0';
+        }
+        count++;
+        p = p->next;
+    } while (p != head);
+    return count;
+}
+
+/* ----------------------------------------------------- */
+
 uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
 {
     switch (id)
@@ -298,6 +412,28 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return sys_set_exc_resume(a1);
     case SYS_READ_TSC:
         return sys_read_tsc();
+    case SYS_PIPE_OPEN:
+        return sys_pipe_open((int)a1);
+    case SYS_PIPE_CLOSE_WRITE:
+        return sys_pipe_close_write((int)a1);
+    case SYS_PIPE_CLOSE_READ:
+        return sys_pipe_close_read((int)a1);
+    case SYS_PIPE_SET_FD:
+        return sys_pipe_set_fd((int)a1, (int)a2);
+    case SYS_CREATE_PROCESS:
+        return sys_create_process(a1, a2, a3);
+    case SYS_GETPID:
+        return sys_getpid();
+    case SYS_KILL:
+        return sys_kill(a1);
+    case SYS_BLOCK:
+        return sys_block(a1);
+    case SYS_UNBLOCK:
+        return sys_unblock(a1);
+    case SYS_NICE:
+        return sys_nice(a1, a2);
+    case SYS_GET_PROCESSES:
+        return sys_get_processes((ProcessInfo *)a1, a2);
     default:
         return (uint64_t)-1; // ENOSYS
     }

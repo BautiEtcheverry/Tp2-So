@@ -14,12 +14,13 @@ void setPriority(uint64_t pid, int priority);
 PCB *getCurrentProcess();
 uint64_t getCurrentPID();
 void exitCurrentProcess(int status);
-/*
-	Retorna:
-        -1 si el pid es inexistente.
-        exist_status
-
-*/
+/* Retorna el exit_status del proceso, o -1 si el pid no existe. Libera el PCB. */
 int waitForProcess(uint64_t pid);
+/* Saca el proceso DEAD de la lista y libera su memoria. */
+void reapProcess(uint64_t pid);
+/* Busca un proceso por PID. Retorna NULL si no existe. */
+PCB *findProcess(uint64_t pid);
+/* Retorna el head de la lista circular (para iterar todos los procesos). */
+PCB *getHeadProcess(void);
 
 #endif

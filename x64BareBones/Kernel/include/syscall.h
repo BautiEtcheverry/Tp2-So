@@ -23,10 +23,26 @@ enum
     SYS_GET_SCREEN_PX_WIDTH = 16,
     SYS_GET_SCREEN_PX_HEIGHT = 17,
     SYS_SET_TEXT_SIZE=18,           // Change the shell textSize (textSize command<default,large,xlarge>)
-    SYS_SET_EXC_RESUME = 19 ,       // set exception resume point
+    SYS_SET_EXC_RESUME = 19,        // set exception resume point
     SYS_READ_TSC = 20,              // read Time Stamp Counter
-    SYS_EXIT = 60,                  // exit current process
-    SYS_WAITPID = 61 
+
+    /* Pipes — IPC */
+    SYS_PIPE_OPEN = 25,        // pipe_open(id)  → id==-1 anónimo, id>=0 nombrado
+    SYS_PIPE_CLOSE_WRITE = 26, // pipe_close_write(id)
+    SYS_PIPE_CLOSE_READ = 27,  // pipe_close_read(id)
+    SYS_PIPE_SET_FD = 28,      // pipe_set_fd(pipe_id, fd_slot) — redirige fd[fd_slot] del proceso actual
+
+    /* Gestión de procesos */
+    SYS_CREATE_PROCESS = 29,   // create_process(fn, argc, argv) → pid
+    SYS_GETPID = 30,           // getpid() → pid del proceso actual
+    SYS_KILL = 31,             // kill(pid) → 0/-1
+    SYS_BLOCK = 32,            // block(pid) → 0/-1
+    SYS_UNBLOCK = 33,          // unblock(pid) → 0/-1
+    SYS_NICE = 34,             // nice(pid, priority) → 0/-1
+    SYS_GET_PROCESSES = 35,    // get_processes(buf, max) → cantidad de procesos (para ps)
+
+    SYS_EXIT = 60,             // exit current process (status)
+    SYS_WAITPID = 61           // waitpid(pid) → exit status
 };
 
 // Kernel-side API

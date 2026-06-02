@@ -1,5 +1,6 @@
 #include "include/libasm.h"
 #include "include/memory_manager.h"
+#include "include/pipe.h"
 #include "include/process.h"
 #include "include/scheduler.h"
 #include <gfxConsole.h>
@@ -163,6 +164,8 @@ int main() {
 	ncPrintHex((uint64_t) shellModuleAddress);
 	ncNewline();
 	ncPrint("  Jumping to shell...\n");
+	pipe_init();
+
 	// Crear proceso idle (se ejecuta cuando no hay otros ready)
 	PCB *idleProc = createProcess("idle", idleMain, 0, NULL, 255, 0);
 	initScheduler(idleProc);
