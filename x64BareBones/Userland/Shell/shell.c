@@ -74,6 +74,11 @@ static int trigger_ud_wrapper(int argc, char *argv[]) {
     trigger_ud();
     return 0;
 }
+static int test_mm_wrapper(int argc, char *argv[]) {
+    (void)argc; (void)argv;
+    test_mm(argc,argv);
+    return 0;
+}
 
 //(Command+funcP+help_cmd_msg) table
 static const struct {
@@ -94,6 +99,7 @@ commands[] = {
     { "regs",      regs_wrapper,      "Show regs" },
     { "trigger-div", trigger_div0_wrapper, "Trigger a division by zero exception" },
     { "trigger-ud", trigger_ud_wrapper, "Trigger a invalid opcode(undefined instruction) exception" },
+    { "test_mm", test_mm_wrapper, "Testeo de memory manager"},
     { NULL,        NULL,          NULL }
 };  
 
