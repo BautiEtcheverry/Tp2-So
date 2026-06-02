@@ -347,3 +347,9 @@ int streq_nocase(const char *a, const char *b) {
 	}
 	return *a == *b;
 }
+size_t strlen(const char *s) {
+    size_t n = 0;
+    while (s && s[n])
+        n++;
+    return n;
+}

@@ -1,4 +1,4 @@
-#include "prompt.h"
+#include "headers/prompt.h"
 #include "../../include/libc.h"
 
 static uint32_t current_fg = 0xFFFFFF;

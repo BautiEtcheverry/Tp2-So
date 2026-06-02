@@ -7,13 +7,6 @@ static int hist_head = 0; // Next index to write to
 
 
 /*-----------------Helpers-----------------*/
-// --- Command history + tab navigation ---
-static size_t s_len(const char *s) {
-	size_t n = 0;
-	while (s && s[n])
-		n++;
-	return n;
-}
 
 static int s_eq(const char *a, const char *b) {
 	if (!a || !b)
@@ -63,7 +56,7 @@ void history_add(const char *line) {
 }
 
 // Returns the list of indices of history that match the prefix, from newest to oldest.
-int history_find_matches(const char *prefix, int *out_idx, int cap) {
+int history_find_matches(const char *prefix, const char **out, int cap) {
 	int cnt = 0;
 	if (cap <= 0)
 		return 0;
@@ -71,7 +64,7 @@ int history_find_matches(const char *prefix, int *out_idx, int cap) {
 		int idx = (hist_head + HIST_MAX - 1 - i) % HIST_MAX; // iterate from newest to oldest
 		const char *h = hist_buf[idx];
 		if (!prefix || prefix[0] == 0 || s_starts_with(h, prefix)) {
-			out_idx[cnt++] = idx;
+			out[cnt++] = h;  
 			if (cnt >= cap)
 				break;
 		}

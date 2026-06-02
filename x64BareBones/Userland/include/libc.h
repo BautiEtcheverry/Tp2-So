@@ -98,6 +98,7 @@ static inline int get_screen_px_height(void){
 int printf(const char *fmt, ...);
 uint64_t str_to_uint(const char *s);
 int streq_nocase(const char *a, const char *b);
+size_t strlen(const char *s);
 
 static inline uint64_t write(int fd, const char *buf, size_t len){
     return sys_3p(SYS_WRITE, (uint64_t)fd, (uint64_t)buf, (uint64_t)len);

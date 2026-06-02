@@ -35,7 +35,7 @@ size_t readline_hist(char *buf, size_t max) {
 				for (size_t i = 0; i < n; i++)
 					puts("\b \b");
 				// Copy and show suggestion
-				size_t m = s_len(sugg);
+				size_t m = strlen(sugg);
 				if (m + 1 > max)
 					m = (max > 0 ? max - 1 : 0);
 				for (size_t i = 0; i < m; i++)
