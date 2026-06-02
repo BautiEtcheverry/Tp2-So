@@ -80,7 +80,6 @@ int putchar(int ch){
     write(1, &c, 1);
     return (int)(unsigned char)c;
 }
-
 // Escribe `s` (largo `len`) ocupando al menos `width` columnas.
 // left=1 → alinea a izquierda (rellena espacios a la derecha), si no a la derecha.
 static int emit_padded(const char *s, size_t len, int width, int left) {
@@ -94,8 +93,8 @@ static int emit_padded(const char *s, size_t len, int width, int left) {
         for (int i = 0; i < pad; i++) { putChar(' '); printed++; }
     return printed;
 }
-
-static int u_vprintf(const char *fmt, va_list ap) {
+static int u_vprintf(const char *fmt, va_list ap)
+{
     int printed = 0;
     for (const char *p = fmt; *p; ++p) {
         if (*p != '%') {

@@ -58,11 +58,12 @@ static int cmd_ps(int argc, char *argv[]) {
     int n = get_processes(buf, 32);
     static const char *states[] = {"READY", "RUNNING", "BLOCKED", "DEAD"};
     printf("%-5s %-16s %-8s %-4s %s\n", "PID", "NAME", "STATE", "PRIO", "FG");
+    printf("%-5s %-16s %-8s %-4s %s\n", "----", "----------------", "--------", "----", "--");
     for (int i = 0; i < n; i++) {
         const char *st = (buf[i].state >= 0 && buf[i].state <= 3)
                          ? states[buf[i].state] : "?";
-        printf("%-5llu %-16s %-8s %-4d %s\n",
-               (unsigned long long)buf[i].pid,
+        printf("%-5u %-16s %-8s %-4d %s\n",
+               (unsigned)buf[i].pid,
                buf[i].name, st,
                buf[i].priority,
                buf[i].foreground ? "yes" : "no");
@@ -74,7 +75,7 @@ static int cmd_kill(int argc, char *argv[]) {
     if (argc < 2) { printf("Usage: kill <pid>\n"); return 1; }
     uint64_t pid = 0;
     for (int i = 0; argv[1][i]; i++) pid = pid * 10 + (argv[1][i] - '0');
-    if (kill(pid) < 0) { printf("kill: no such process %llu\n", (unsigned long long)pid); return 1; }
+    if (kill(pid) < 0) { printf("kill: no such process %u\n", (unsigned)pid); return 1; }
     return 0;
 }
 
@@ -83,7 +84,7 @@ static int cmd_nice(int argc, char *argv[]) {
     uint64_t pid = 0; int prio = 0;
     for (int i = 0; argv[1][i]; i++) pid  = pid  * 10 + (argv[1][i] - '0');
     for (int i = 0; argv[2][i]; i++) prio = prio * 10 + (argv[2][i] - '0');
-    if (nice(pid, prio) < 0) { printf("nice: no such process %llu\n", (unsigned long long)pid); return 1; }
+    if (nice(pid, prio) < 0) { printf("nice: no such process %u\n", (unsigned)pid); return 1; }
     return 0;
 }
 
@@ -91,7 +92,7 @@ static int cmd_block(int argc, char *argv[]) {
     if (argc < 2) { printf("Usage: block <pid>\n"); return 1; }
     uint64_t pid = 0;
     for (int i = 0; argv[1][i]; i++) pid = pid * 10 + (argv[1][i] - '0');
-    if (block(pid) < 0) { printf("block: no such process %llu\n", (unsigned long long)pid); return 1; }
+    if (block(pid) < 0) { printf("block: no such process %u\n", (unsigned)pid); return 1; }
     return 0;
 }
 
@@ -99,15 +100,16 @@ static int cmd_unblock(int argc, char *argv[]) {
     if (argc < 2) { printf("Usage: unblock <pid>\n"); return 1; }
     uint64_t pid = 0;
     for (int i = 0; argv[1][i]; i++) pid = pid * 10 + (argv[1][i] - '0');
-    if (unblock(pid) < 0) { printf("unblock: no such process %llu\n", (unsigned long long)pid); return 1; }
+    if (unblock(pid) < 0) { printf("unblock: no such process %u\n", (unsigned)pid); return 1; }
     return 0;
 }
 
 /* Proceso que corre indefinidamente — útil para probar scheduler */
 int loop_proc(int argc, char *argv[]) {
     (void)argc; (void)argv;
-    while (1)
-        __asm__ volatile("hlt");
+    while (1) {
+        for (volatile int i = 0; i < 10000000; i++);
+    }
     return 0;
 }
 
@@ -115,7 +117,7 @@ static int cmd_loop(int argc, char *argv[]) {
     (void)argc; (void)argv;
     int64_t pid = create_process(loop_proc, 0, (char*[]){0});
     if (pid < 0) { printf("loop: no se pudo crear el proceso\n"); return 1; }
-    printf("loop: proceso creado con PID %lld\n", (long long)pid);
+    printf("loop: proceso creado con PID %d\n", (int)pid);
     return 0;
 }
 

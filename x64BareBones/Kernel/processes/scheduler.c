@@ -12,6 +12,7 @@
 #define MAX_QUANTUMS 4
 
 static void wakeWaiters(uint64_t dead_pid);
+static int hasWaiter(uint64_t pid);
 
 static PCB *head = NULL;
 static PCB *current = NULL;
@@ -47,6 +48,12 @@ void addProcess(PCB *pcb) {
 uint64_t schedule(uint64_t currentRSP) {
 	if (current != NULL)
 		current->rsp = currentRSP;
+
+	/* Auto-reap: si el proceso actual murió y nadie lo espera, liberarlo ahora.
+	 * Si alguien lo espera con waitpid, se queda como DEAD hasta que ese
+	 * proceso llame waitForProcess y lo reapee. */
+	if (current != NULL && current->state == DEAD && !hasWaiter(current->pid))
+		reapProcess(current->pid); /* pone current = NULL internamente */
 
 	/* Si al proceso actual le quedan quantums y sigue listo, continúa */
 	if (current != NULL && current->state == READY && quantums_remaining > 0) {
@@ -113,6 +120,10 @@ void killProcess(uint64_t pid) {
 			if (p == current)
 				quantums_remaining = 0;
 			wakeWaiters(pid);
+			/* Si nadie espera este proceso y no es el actual,
+			 * reapearlo de inmediato para liberar memoria */
+			if (p != current && !hasWaiter(pid))
+				reapProcess(pid);
 			return;
 		}
 		p = p->next;
@@ -168,6 +179,17 @@ static void wakeWaiters(uint64_t dead_pid) {
 		p = p->next;
 	} while (p != head);
 }
+static int hasWaiter(uint64_t pid) {
+	if (!head) return 0;
+	PCB *p = head;
+	do {
+		if (p->state == BLOCKED && p->wait_pid == pid)
+			return 1;
+		p = p->next;
+	} while (p != head);
+	return 0;
+}
+
 PCB *getHeadProcess(void) {
 	return head;
 }
