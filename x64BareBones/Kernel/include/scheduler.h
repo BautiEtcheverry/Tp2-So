@@ -18,6 +18,8 @@ void exitCurrentProcess(int status);
 int waitForProcess(uint64_t pid);
 /* Saca el proceso DEAD de la lista y libera su memoria. */
 void reapProcess(uint64_t pid);
+/* Cede el CPU voluntariamente (el scheduler rota en el próximo tick). */
+void yieldProcess(void);
 /* Busca un proceso por PID. Retorna NULL si no existe. */
 PCB *findProcess(uint64_t pid);
 /* Retorna el head de la lista circular (para iterar todos los procesos). */

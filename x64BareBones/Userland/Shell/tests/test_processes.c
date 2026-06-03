@@ -1,6 +1,5 @@
-#include "sys.h"
+#include "syscall.h"
 #include "test_util.h"
-#include <stdio.h>
 
 enum State { RUNNING, BLOCKED, KILLED };
 

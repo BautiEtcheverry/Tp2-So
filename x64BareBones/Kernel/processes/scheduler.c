@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "process.h"
+#include "pipe.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -111,17 +112,20 @@ void unblockProcess(uint64_t pid) {
 }
 
 void killProcess(uint64_t pid) {
+	if (pid <= 2) return;   /* idle y shell son intocables */
 	PCB *p = head;
 	if (!p)
 		return;
 	do {
 		if (p->pid == pid) {
+			/* Cerrar pipes del proceso si tiene alguno abierto */
+			if (IS_PIPE_FD(p->fd[0])) pipe_close_read(PIPE_FD_TO_ID(p->fd[0]));
+			if (IS_PIPE_FD(p->fd[1])) pipe_close_write(PIPE_FD_TO_ID(p->fd[1]));
 			p->state = DEAD;
 			if (p == current)
 				quantums_remaining = 0;
 			wakeWaiters(pid);
-			/* Si nadie espera este proceso y no es el actual,
-			 * reapearlo de inmediato para liberar memoria */
+			/* Si nadie espera este proceso y no es el actual, reapear */
 			if (p != current && !hasWaiter(pid))
 				reapProcess(pid);
 			return;
@@ -156,13 +160,16 @@ uint64_t getCurrentPID(void) {
 void exitCurrentProcess(int status) {
 	PCB *cur = getCurrentProcess();
 	if (cur) {
+		/* Cerrar extremos de pipe si el proceso los tenía abiertos */
+		if (IS_PIPE_FD(cur->fd[0])) pipe_close_read(PIPE_FD_TO_ID(cur->fd[0]));
+		if (IS_PIPE_FD(cur->fd[1])) pipe_close_write(PIPE_FD_TO_ID(cur->fd[1]));
 		cur->exit_status = status;
 		cur->state = DEAD;
 		quantums_remaining = 0;
 		wakeWaiters(cur->pid);
 	}
 	while (1)
-		__asm__ volatile("hlt"); // Espera hasta que el proximo tick del timer y despues no se lo vuelve a elgir.
+		__asm__ volatile("hlt");
 }
 
 
@@ -188,6 +195,10 @@ static int hasWaiter(uint64_t pid) {
 		p = p->next;
 	} while (p != head);
 	return 0;
+}
+
+void yieldProcess(void) {
+	quantums_remaining = 0;
 }
 
 PCB *getHeadProcess(void) {

@@ -6,48 +6,53 @@
 // Syscall numbers
 enum
 {
-    SYS_WRITE = 1,                  // write(fd, buf, len)
-    SYS_CLEAR = 2,                  // clear_screen()
-    SYS_READ = 3,                   // read(fd, buf, len)
-    SYS_TIME = 5,                   // returns packed Y(8)-M(8)-D(8)-H(8)-m(8)-S(8)
-    SYS_SET_TEXT_COLOR = 6,         // set text color by RGB (foreground)
-    SYS_SET_TEXT_COLOR_NAME = 7,    // set text color by name (uses driver table)
-    SYS_PRINT_AVAILABLE_COLORS = 8, // kernel prints available colors
-    SYS_REGS_PRINT = 9,             // print last captured registers
-    SYS_SET_COLORS = 10,            // set foreground and background colors (fg,bg)
-    SYS_GET_SHELL_COLS = 11,        // returns console columns
-    SYS_GET_SHELL_ROWS = 12,        // returns console rows
-    SYS_KBD_AVAILABLE = 13,         // number of bytes available in keyboard buffer
-    SYS_GET_COLOR_BY_NAME = 14,     // returns rgb for a color name
-    SYS_GFX_FILL_BLENDED = 15,      // fill rectangle with alpha blending (x,y,ptr->(w,h,color,alpha))
+    SYS_WRITE = 1,
+    SYS_CLEAR = 2,
+    SYS_READ = 3,
+    SYS_TIME = 5,
+    SYS_SET_TEXT_COLOR = 6,
+    SYS_SET_TEXT_COLOR_NAME = 7,
+    SYS_PRINT_AVAILABLE_COLORS = 8,
+    SYS_REGS_PRINT = 9,
+    SYS_SET_COLORS = 10,
+    SYS_GET_SHELL_COLS = 11,
+    SYS_GET_SHELL_ROWS = 12,
+    SYS_KBD_AVAILABLE = 13,
+    SYS_GET_COLOR_BY_NAME = 14,
+    SYS_GFX_FILL_BLENDED = 15,
     SYS_GET_SCREEN_PX_WIDTH = 16,
     SYS_GET_SCREEN_PX_HEIGHT = 17,
-    SYS_SET_TEXT_SIZE=18,           // Change the shell textSize (textSize command<default,large,xlarge>)
-    SYS_SET_EXC_RESUME = 19,        // set exception resume point
-    SYS_READ_TSC = 20,              // read Time Stamp Counter
-    
-    /*Memoria*/
-    SYS_MALLOC = 21,                // malloc(size) -> puntero (0 si falla)
-    SYS_FREE = 22,                  
-    SYS_MEM_INFO = 23,              // mem_info(mem_info_t * dst) llena el struct
+    SYS_SET_TEXT_SIZE = 18,
+    SYS_SET_EXC_RESUME = 19,
+    SYS_READ_TSC = 20,
+
+    /* Memoria */
+    SYS_MALLOC = 21,
+    SYS_FREE = 22,
+    SYS_MEM_INFO = 23,
 
     /* Pipes — IPC */
-    SYS_PIPE_OPEN = 25,        // pipe_open(id)  → id==-1 anónimo, id>=0 nombrado
-    SYS_PIPE_CLOSE_WRITE = 26, // pipe_close_write(id)
-    SYS_PIPE_CLOSE_READ = 27,  // pipe_close_read(id)
-    SYS_PIPE_SET_FD = 28,      // pipe_set_fd(pipe_id, fd_slot) — redirige fd[fd_slot] del proceso actual
+    SYS_PIPE_OPEN = 25,
+    SYS_PIPE_CLOSE_WRITE = 26,
+    SYS_PIPE_CLOSE_READ = 27,
+    SYS_PIPE_SET_FD = 28,
 
     /* Gestión de procesos */
-    SYS_CREATE_PROCESS = 29,   // create_process(fn, argc, argv) → pid
-    SYS_GETPID = 30,           // getpid() → pid del proceso actual
-    SYS_KILL = 31,             // kill(pid) → 0/-1
-    SYS_BLOCK = 32,            // block(pid) → 0/-1
-    SYS_UNBLOCK = 33,          // unblock(pid) → 0/-1
-    SYS_NICE = 34,             // nice(pid, priority) → 0/-1
-    SYS_GET_PROCESSES = 35,    // get_processes(buf, max) → cantidad de procesos (para ps)
+    SYS_CREATE_PROCESS = 29,
+    SYS_GETPID = 30,
+    SYS_KILL = 31,
+    SYS_BLOCK = 32,
+    SYS_UNBLOCK = 33,
+    SYS_NICE = 34,
+    SYS_GET_PROCESSES = 35,
+    SYS_YIELD = 36,
 
-    SYS_EXIT = 60,             // exit current process (status)
-    SYS_WAITPID = 61           // waitpid(pid) → exit status
+    /* 37-41 reservados para semáforos */
+
+    SYS_SET_FOREGROUND = 42,
+
+    SYS_EXIT = 60,
+    SYS_WAITPID = 61
 };
 
 // Kernel-side API

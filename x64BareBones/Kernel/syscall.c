@@ -3,6 +3,10 @@
 #include "syscall.h"
 #include "keyboard.h"
 #include "videoDriver.h"
+#include "gfxConsole.h"
+#include "libasm.h"
+#include "scheduler.h"
+#include "pipe.h"
 #include "memory_manager.h"
 
 /* Debe coincidir con ProcessInfo en Userland/include/libc.h */
@@ -12,11 +16,29 @@ typedef struct {
     int      state;
     int      priority;
     int      foreground;
+    uint64_t stack_base;
+    uint64_t rsp;
 } ProcessInfo;
-#include "gfxConsole.h"
-#include "libasm.h"
-#include "scheduler.h"
-#include "pipe.h"
+
+/* Debe coincidir con CreateProcessArgs en Userland/include/libc.h */
+typedef struct {
+    int (*fn)(int, char**);
+    int      argc;
+    char   **argv;
+    int      stdin_res;   /* 0=teclado, PIPE_FD_BASE+id=pipe */
+    int      stdout_res;  /* 1=pantalla, PIPE_FD_BASE+id=pipe */
+} CreateProcessArgs;
+
+
+/* PID del proceso en foreground — para Ctrl+C desde el keyboard driver */
+static uint64_t kernel_foreground_pid = 0;
+void set_kernel_foreground(uint64_t pid) { kernel_foreground_pid = pid; }
+void kill_foreground(void) {
+    if (kernel_foreground_pid) {
+        killProcess(kernel_foreground_pid);
+        kernel_foreground_pid = 0;
+    }
+}
 
 extern uint64_t exc_resume_rip; 
 extern uint64_t read_tsc_asm(void);
@@ -127,9 +149,31 @@ static uint64_t sys_read(uint64_t fd, char *buf, uint64_t len)
     if (IS_PIPE_FD(resource))
         return (uint64_t)pipe_read(PIPE_FD_TO_ID(resource), buf, (int)len);
 
+    /* Ctrl+D pendiente del read anterior — devolver EOF */
+    static int kbd_eof_pending = 0;
+    if (kbd_eof_pending) {
+        kbd_eof_pending = 0;
+        return 0;
+    }
+
     /* Recurso 0 = teclado */
     while (kbd_available() == 0) { }
-    return (uint64_t)kbd_read(buf, len);
+    size_t n = kbd_read(buf, len);
+
+    for (size_t i = 0; i < n; i++) {
+        if (buf[i] == 0x04) {
+            /* Newline visual al Ctrl+D para que el cursor quede en línea nueva.
+             * Solo si había texto antes (i > 0) o el cursor no estaba en nueva línea. */
+            sys_write_screen("\n", 1);
+            if (i > 0) kbd_eof_pending = 1;
+            return (uint64_t)i;
+        }
+        if (buf[i] == 0x03) {
+            kill_foreground();
+            return (uint64_t)i;
+        }
+    }
+    return (uint64_t)n;
 }
 
 
@@ -270,10 +314,15 @@ static uint64_t sys_set_text_size(uint64_t mode)
 
 /* ---------- syscalls de gestión de procesos ---------- */
 
-static uint64_t sys_create_process(uint64_t fn, uint64_t argc, uint64_t argv) {
-    PCB *pcb = createProcess("proc", (ProcessMain)fn, (int)argc, (char **)argv, 0, 0);
-    if (!pcb)
-        return (uint64_t)-1;
+static uint64_t sys_create_process(uint64_t args_ptr) {
+    CreateProcessArgs *a = (CreateProcessArgs *)args_ptr;
+    if (!a || !a->fn) return (uint64_t)-1;
+    /* Usar argv[0] como nombre del proceso para que ps muestre el comando real */
+    const char *name = (a->argc > 0 && a->argv && a->argv[0]) ? a->argv[0] : "proc";
+    PCB *pcb = createProcess(name, (ProcessMain)a->fn, a->argc, a->argv, 0, 0);
+    if (!pcb) return (uint64_t)-1;
+    pcb->fd[0] = a->stdin_res;
+    pcb->fd[1] = a->stdout_res;
     addProcess(pcb);
     return (uint64_t)pcb->pid;
 }
@@ -283,6 +332,9 @@ static uint64_t sys_getpid(void) {
 }
 
 static uint64_t sys_kill(uint64_t pid) {
+    /* idle (PID 1) y shell (PID 2) son intocables — matarlos freezea el sistema */
+    if (pid <= 2)
+        return (uint64_t)-1;
     PCB *p = findProcess(pid);
     if (!p || p->state == DEAD)
         return (uint64_t)-1;
@@ -331,6 +383,8 @@ static uint64_t sys_get_processes(ProcessInfo *buf, uint64_t max) {
             buf[count].state      = (int)p->state;
             buf[count].priority   = p->priority;
             buf[count].foreground = p->foreground;
+            buf[count].stack_base = p->stackBase;
+            buf[count].rsp        = p->rsp;
             int i;
             for (i = 0; i < 63 && p->name[i]; i++)
                 buf[count].name[i] = p->name[i];
@@ -340,6 +394,32 @@ static uint64_t sys_get_processes(ProcessInfo *buf, uint64_t max) {
         p = p->next;
     } while (p != head);
     return count;
+}
+
+static uint64_t sys_yield(void) {
+    yieldProcess();
+    return 0;
+}
+
+static uint64_t sys_get_mem_info(uint64_t buf_ptr) {
+    mem_info_t *out = (mem_info_t *)buf_ptr;
+    if (!out) return (uint64_t)-1;
+    *out = sys_mem_info();
+    return 0;
+}
+
+static uint64_t sys_set_foreground(uint64_t pid) {
+    set_kernel_foreground(pid);
+    return 0;
+}
+
+static uint64_t sys_kmalloc(uint64_t size) {
+    return (uint64_t)sys_malloc((size_t)size);
+}
+
+static uint64_t sys_kfree(uint64_t ptr) {
+    sys_free((void *)ptr);
+    return 0;
 }
 
 /* ----------------------------------------------------- */
@@ -423,7 +503,7 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
     case SYS_PIPE_SET_FD:
         return sys_pipe_set_fd((int)a1, (int)a2);
     case SYS_CREATE_PROCESS:
-        return sys_create_process(a1, a2, a3);
+        return sys_create_process(a1);
     case SYS_GETPID:
         return sys_getpid();
     case SYS_KILL:
@@ -436,18 +516,16 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return sys_nice(a1, a2);
     case SYS_GET_PROCESSES:
         return sys_get_processes((ProcessInfo *)a1, a2);
+    case SYS_YIELD:
+        return sys_yield();
+    case SYS_MEM_INFO:
+        return sys_get_mem_info(a1);
+    case SYS_SET_FOREGROUND:
+        return sys_set_foreground(a1);
     case SYS_MALLOC:
-        return (uint64_t) sys_malloc((size_t) a1);
+        return sys_kmalloc(a1);
     case SYS_FREE:
-        sys_free((void *) a1);
-        return 0;
-    case SYS_MEM_INFO: {
-        mem_info_t *dst = (mem_info_t *) a1;
-        if (dst == 0)
-            return (uint64_t) -1;
-        *dst = sys_mem_info();
-        return 0;
-    }
+        return sys_kfree(a1);
     default:
         return (uint64_t)-1; // ENOSYS
     }

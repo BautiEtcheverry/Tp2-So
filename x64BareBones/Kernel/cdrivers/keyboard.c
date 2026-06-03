@@ -28,6 +28,10 @@ static const char shifted_keymap[128] = {
 static volatile uint8_t shift_pressed = 0;
 static volatile uint8_t caps_lock = 0;
 static volatile uint8_t e0_prefix = 0;
+static volatile uint8_t ctrl_pressed = 0;
+
+/* Declarada en syscall.c — mata el proceso foreground actual */
+extern void kill_foreground(void);
 
 //Handles the scanCode(converts to char) send by the irq handler(bellow) and it considers shifts and capsLock.
 void keyboard_isr_handler(uint8_t scancode)
@@ -53,21 +57,18 @@ void keyboard_isr_handler(uint8_t scancode)
     // Key release
     if (scancode & 0x80){
         uint8_t code = scancode & 0x7F;
-        if (code == 0x2A || code == 0x36)
-        { // LSHIFT or RSHIFT release
-            shift_pressed = 0;
-        }
+        if (code == 0x2A || code == 0x36) shift_pressed = 0;
+        if (code == 0x1D) ctrl_pressed = 0;
         return;
     }
 
     // Key press
-    if (scancode == 0x2A || scancode == 0x36){ 
-        // LSHIFT or RSHIFT press
+    if (scancode == 0x1D) { ctrl_pressed = 1; return; }  /* Left Ctrl */
+    if (scancode == 0x2A || scancode == 0x36){
         shift_pressed = 1;
         return;
     }
     if (scancode == 0x3A){
-        // Caps Lock toggle
         caps_lock ^= 1;
         return;
     }
@@ -76,7 +77,10 @@ void keyboard_isr_handler(uint8_t scancode)
     if (scancode < (sizeof(keymap) / sizeof(keymap[0]))){
         char base = keymap[scancode];
         char shft = shifted_keymap[scancode];
-        if (base >= 'a' && base <= 'z'){
+        if (ctrl_pressed && base >= 'a' && base <= 'z') {
+            /* Ctrl+A=1, Ctrl+C=3, Ctrl+D=4, etc. */
+            ch = (char)(base - 'a' + 1);
+        } else if (base >= 'a' && base <= 'z'){
             // Letters: caps XOR shift -> uppercase
             if ((caps_lock ^ shift_pressed))
                 ch = (char)(base - ('a' - 'A'));
@@ -91,7 +95,12 @@ void keyboard_isr_handler(uint8_t scancode)
         return;
     unsigned int next = (head + 1) % KBD_BUF_SIZE;
     if (next == tail)
-        return; 
+        return;
+    /* Ctrl+C: matar proceso foreground inmediatamente, no guardar en buffer */
+    if (ch == 0x03) {
+        kill_foreground();
+        return;
+    }
     kbuf[head] = ch;
     head = next;
 }

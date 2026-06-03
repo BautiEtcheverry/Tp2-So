@@ -59,10 +59,37 @@ enum
     SYS_UNBLOCK = 33,
     SYS_NICE = 34,
     SYS_GET_PROCESSES = 35,
+    SYS_YIELD = 36,
+
+    /* 37-41 reservados para semáforos */
+    SYS_SET_FOREGROUND = 42,
 
     SYS_EXIT = 60,
     SYS_WAITPID = 61
 };
+
+/* Recurso de pipe: fd value >= PIPE_FD_BASE es un pipe */
+#define PIPE_FD_BASE      2
+#define PIPE_ID_TO_FD(id) ((id) + PIPE_FD_BASE)
+
+/* Structs compartidos kernel/userland — deben coincidir con Kernel/syscall.c */
+typedef struct {
+    uint64_t pid;
+    char     name[64];
+    int      state;        /* 0=READY 1=RUNNING 2=BLOCKED 3=DEAD */
+    int      priority;
+    int      foreground;
+    uint64_t stack_base;
+    uint64_t rsp;
+} ProcessInfo;
+
+typedef struct {
+    int    (*fn)(int, char**);
+    int      argc;
+    char   **argv;
+    int      stdin_res;   /* 0=teclado, PIPE_ID_TO_FD(id)=pipe */
+    int      stdout_res;  /* 1=pantalla, PIPE_ID_TO_FD(id)=pipe */
+} CreateProcessArgs;
 
 // Implemented in Userland/Shell/syscall.asm to avoid inline asm ()
 /*------------------------------------------------------------------*/
@@ -281,21 +308,41 @@ static inline int pipe_set_fd(int pipe_id, int fd_slot) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Yield, memoria, foreground                                           */
+/* ------------------------------------------------------------------ */
+
+static inline void yield(void) {
+    sys_0p(SYS_YIELD);
+}
+
+/* Registra el PID del proceso foreground actual para que Ctrl+C lo mate. */
+static inline void set_foreground(uint64_t pid) {
+    sys_1p(SYS_SET_FOREGROUND, pid);
+}
+
+static inline void *mem_alloc(uint64_t size) {
+    return (void *)sys_1p(SYS_MALLOC, size);
+}
+
+static inline void mem_free(void *ptr) {
+    sys_1p(SYS_FREE, (uint64_t)ptr);
+}
+
+/* ------------------------------------------------------------------ */
 /* Gestión de procesos                                                  */
 /* ------------------------------------------------------------------ */
 
-/* Información de un proceso — debe coincidir con la definición en Kernel/syscall.c */
-typedef struct {
-    uint64_t pid;
-    char     name[64];
-    int      state;      /* 0=READY 1=RUNNING 2=BLOCKED 3=DEAD */
-    int      priority;
-    int      foreground;
-} ProcessInfo;
-
-/* Crea un proceso nuevo que ejecuta fn(argc, argv). Retorna el PID o -1. */
+/* Crea proceso con stdin=teclado, stdout=pantalla (uso normal). */
 static inline int64_t create_process(int (*fn)(int, char**), int argc, char **argv) {
-    return (int64_t)sys_3p(SYS_CREATE_PROCESS, (uint64_t)fn, (uint64_t)argc, (uint64_t)argv);
+    CreateProcessArgs a = { fn, argc, argv, 0, 1 };
+    return (int64_t)sys_1p(SYS_CREATE_PROCESS, (uint64_t)&a);
+}
+
+/* Crea proceso con stdin/stdout redirigidos a un pipe. */
+static inline int64_t create_process_piped(int (*fn)(int, char**), int argc, char **argv,
+                                            int stdin_res, int stdout_res) {
+    CreateProcessArgs a = { fn, argc, argv, stdin_res, stdout_res };
+    return (int64_t)sys_1p(SYS_CREATE_PROCESS, (uint64_t)&a);
 }
 
 /* PID del proceso actual. */

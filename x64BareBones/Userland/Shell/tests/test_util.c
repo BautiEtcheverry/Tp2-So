@@ -59,7 +59,7 @@ void bussy_wait(uint64_t n) {
     ;
 }
 
-void endless_loop() {
+void endless_loop_stub() {
   while (1)
     ;
 }

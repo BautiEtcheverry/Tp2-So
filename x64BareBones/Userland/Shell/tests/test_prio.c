@@ -1,7 +1,6 @@
-#include "sys.h"
+#include "syscall.h"
 #include "test_util.h"
 #include <stdint.h>
-#include <stdio.h>
 
 #define TOTAL_PROCESSES 3
 

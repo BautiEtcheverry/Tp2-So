@@ -120,37 +120,6 @@ void *initializeKernelBinary() {
 }
 
 
-/*--------------------Testing--------------------*/	
-static uint64_t sleeper_pid;   // global para que waiter sepa a quién esperar
-static void gprint(const char * s) {
-    int len = 0;
-    while (s[len]) len++;
-    gfx_write(s, len);
-}
-int sleeperMain(int argc, char ** argv) {
-    for (int i = 0; i < 5; i++) {
-        gprint("[sleeper] tick\n");
-        for (volatile int j = 0; j < 50000000; j++);  // delay
-    }
-    return 42;
-}
-
-int waiterMain(int argc, char ** argv) {
-    gprint("[waiter] esperando a sleeper...\n");
-    uint64_t status;
-    __asm__ volatile (
-        "int $0x80"
-        : "=a"(status)
-        : "a"((uint64_t) 61), "D"(sleeper_pid)
-        : "rsi", "rdx", "rcx", "memory"
-    );
-    gprint("[waiter] sleeper muri, status=");
-    char buf[2] = {'0' + (char)(status % 10), 0};
-    gprint(buf);
-    gprint("\n");
-    return 0;
-}
-/*----------------------------------------*/
 
 int main() {
 	// Initialize graphics console if VESA LFB is active
@@ -174,15 +143,6 @@ int main() {
 	PCB *shellProc = createProcess("sh", shellMain, 0, NULL, 0, 1);
 	addProcess(shellProc);
 
-	/*--------------------Testing--------------------*/
-	PCB * sleeper = createProcess("sleeper", sleeperMain, 0, NULL, 1, 0);
-	sleeper_pid = sleeper->pid;    
-	addProcess(sleeper);
-	
-	PCB * waiter  = createProcess("waiter", waiterMain, 0, NULL, 1, 0);
-	// hardcodeamos el target PID en waiterMain... o usamos una global
-	addProcess(waiter);
-	/*----------------------------------------*/
 
 	sti_enable(); // Enable CPU interrupts. Lo haciamos en init_irqs, pero todavía no estaba inicializado el scheduler y
 				  // se desreferenciaba un puntero con basura.
