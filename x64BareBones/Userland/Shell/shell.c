@@ -136,6 +136,12 @@ static cmdFuncP find_cmd_fn(const char *name) {
             return commands[i].fn;
     return (cmdFuncP)0;
 }
+static const Command *find_cmd(const char *name) {
+    for (int i = 0; commands[i].name != NULL; i++)
+        if (streq(commands[i].name, name))
+            return &commands[i];
+    return NULL;
+}
 
 /* PID del proceso foreground actual (para Ctrl+C en readline) */
 static uint64_t fg_pid = 0;
@@ -211,10 +217,15 @@ int main(void) {
             }
             if (argc == 0) continue;
 
-            cmdFuncP fn = find_cmd_fn(argv[0]);
-            if (!fn) { printf("Comando no encontrado: %s\n", argv[0]); continue; }
+        
+            const Command *cmd = find_cmd(argv[0]);
+                if (!cmd) { printf("Comando no encontrado: %s\n", argv[0]); continue; }
+                if (cmd->kind == BUILTIN) {
+                    cmd->fn(argc, argv);        // corre EN la shell, sincrónico
+                    continue;
+                }   
 
-            int64_t pid = create_process(fn, argc, argv);
+            int64_t pid = create_process(cmd->fn, argc, argv);
             if (pid < 0) { printf("Error creando proceso\n"); continue; }
 
             if (background) {

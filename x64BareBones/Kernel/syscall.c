@@ -8,6 +8,7 @@
 #include "scheduler.h"
 #include "pipe.h"
 #include "memory_manager.h"
+#include "sem.h"
 
 /* Debe coincidir con ProcessInfo en Userland/include/libc.h */
 typedef struct {
@@ -422,6 +423,21 @@ static uint64_t sys_kfree(uint64_t ptr) {
     return 0;
 }
 
+static uint64_t sys_sem_open(const char *name, uint64_t init) {
+    return (uint64_t) sem_open(name, init);
+}
+
+static uint64_t sys_sem_wait(int id) {
+    return (uint64_t) sem_wait(id);
+}
+
+static uint64_t sys_sem_post(int id) {
+    return (uint64_t) sem_post(id);
+}
+
+static uint64_t sys_sem_close(int id) {
+    return (uint64_t) sem_close(id);
+}
 /* ----------------------------------------------------- */
 
 uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
@@ -526,6 +542,14 @@ uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
         return sys_kmalloc(a1);
     case SYS_FREE:
         return sys_kfree(a1);
+        case SYS_SEM_OPEN:
+        return sys_sem_open((const char *)a1, a2);
+    case SYS_SEM_WAIT:
+        return sys_sem_wait((int)a1);
+    case SYS_SEM_POST:
+        return sys_sem_post((int)a1);
+    case SYS_SEM_CLOSE:
+        return sys_sem_close((int)a1);
     default:
         return (uint64_t)-1; // ENOSYS
     }

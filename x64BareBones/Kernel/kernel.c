@@ -3,6 +3,7 @@
 #include "include/pipe.h"
 #include "include/process.h"
 #include "include/scheduler.h"
+#include "sem.h"
 #include <gfxConsole.h>
 #include <lib.h>
 #include <moduleLoader.h>
@@ -134,6 +135,7 @@ int main() {
 	ncNewline();
 	ncPrint("  Jumping to shell...\n");
 	pipe_init();
+	sem_init();
 
 	// Crear proceso idle (se ejecuta cuando no hay otros ready)
 	PCB *idleProc = createProcess("idle", idleMain, 0, NULL, 255, 0);

@@ -24,4 +24,10 @@ void picSlaveMask(uint8_t mask);
 // sti sets the interrupt flag(IF) to 1, to enable interrupts.
 void sti_enable(void);
 
-#endif 
+// Interrupt flag save/restore — para secciones críticas del kernel.
+// irq_save deshabilita interrupciones (cli) y retorna el RFLAGS previo.
+// irq_restore restaura ese RFLAGS (re-habilita IF solo si estaba en 1).
+uint64_t irq_save(void);
+void irq_restore(uint64_t flags);
+
+#endif

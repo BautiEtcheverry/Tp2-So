@@ -47,7 +47,11 @@ enum
     SYS_GET_PROCESSES = 35,
     SYS_YIELD = 36,
 
-    /* 37-41 reservados para semáforos */
+    /* Semáforos */
+    SYS_SEM_OPEN  = 37,
+    SYS_SEM_WAIT  = 38,
+    SYS_SEM_POST  = 39,
+    SYS_SEM_CLOSE = 40,
 
     SYS_SET_FOREGROUND = 42,
 

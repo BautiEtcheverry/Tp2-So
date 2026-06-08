@@ -10,6 +10,8 @@ GLOBAL inl
 GLOBAL outl
 GLOBAL cpu_halt
 GLOBAL read_tsc_asm
+GLOBAL irq_save
+GLOBAL irq_restore
 
 ;Funcion para solucionar problema de pantalla negra por que al comenzar el rtc que en arqui
 ;usabamos para calcular los fps no para de interrumpir (INT 0x28) y como el loader.asm no hace
@@ -184,4 +186,17 @@ out 0x71, al    ; lo escribo en 0x71 → reg B queda con PIE=0 (RTC ya no genera
 mov al, 0x0C    ; al = 0x0C, índice del registro C del CMOS
 out 0x70, al    ; selecciono el registro Cß
 in  al, 0x71    ; leo C y descarto el valor → esto "limpia" el flag de interrupción
+ret
+
+; uint64_t irq_save(void) — guarda RFLAGS y deshabilita interrupciones (cli)
+irq_save:
+  pushfq ;Pushea los 64bits del resgistro rflags
+  pop rax
+  cli
+  ret
+
+; void irq_restore(uint64_t flags) — restaura RFLAGS (re-habilita IF solo si estaba en 1)
+irq_restore:
+push rdi ; En rdi recibimos el parametro flags(primer param se pasa por rdi)
+popfq ;Pongo en RFLAGS el rsp, osea los falgs que acabo de pushear.
 ret
