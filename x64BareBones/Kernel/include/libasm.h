@@ -11,6 +11,7 @@ void outl(uint16_t port, uint32_t val);
 
 // CPU control helpers
 void cpu_halt(void);
+void cpu_cli(void);
 
 // Master PIC setup
 // Enable/disable interrupts on the master PIC (IRQs 0..7)

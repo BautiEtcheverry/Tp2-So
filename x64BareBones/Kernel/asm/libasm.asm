@@ -4,6 +4,7 @@ GLOBAL saveRegisters
 GLOBAL picMasterMask
 GLOBAL picSlaveMask
 GLOBAL sti_enable
+GLOBAL cpu_cli
 GLOBAL inb
 GLOBAL outb
 GLOBAL inl
@@ -159,6 +160,11 @@ picSlaveMask:
 ; void sti_enable(void);
 sti_enable:
     sti
+    ret
+
+; void cpu_cli(void);
+cpu_cli:
+    cli
     ret
 
 ; uint64_t read_tsc_asm(void);

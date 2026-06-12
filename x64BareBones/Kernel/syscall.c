@@ -157,7 +157,7 @@ static uint64_t sys_read(uint64_t fd, char *buf, uint64_t len)
     }
 
     /* Recurso 0 = teclado */
-    while (kbd_available() == 0) { }
+    while (kbd_available() == 0) { cpu_halt(); }
     size_t n = kbd_read(buf, len);
 
     for (size_t i = 0; i < n; i++) {
@@ -343,6 +343,8 @@ static uint64_t sys_kill(uint64_t pid) {
 }
 
 static uint64_t sys_block(uint64_t pid) {
+    if (pid <= 2)                   /* idle y shell no son bloqueables desde userland */
+        return (uint64_t)-1;
     PCB *p = findProcess(pid);
     if (!p || p->state == DEAD)
         return (uint64_t)-1;
@@ -359,8 +361,12 @@ static uint64_t sys_unblock(uint64_t pid) {
 }
 
 static uint64_t sys_nice(uint64_t pid, uint64_t priority) {
+    if (pid <= 2)                   /* idle y shell tienen prioridad fija */
+        return (uint64_t)-1;
     PCB *p = findProcess(pid);
     if (!p || p->state == DEAD)
+        return (uint64_t)-1;
+    if (priority > MAX_PRIORITY)    /* rango válido: [0, MAX_QUANTUMS-1] */
         return (uint64_t)-1;
     setPriority(pid, (int)priority);
     return 0;

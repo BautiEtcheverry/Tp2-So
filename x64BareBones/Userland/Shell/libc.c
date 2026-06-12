@@ -92,13 +92,11 @@ int putchar(int ch){
     write(1, &c, 1);
     return (int)(unsigned char)c;
 }
-// Escribe `s` (largo `len`) ocupando al menos `width` columnas.
-// left=1 → alinea a izquierda (rellena espacios a la derecha), si no a la derecha.
-static int emit_padded(const char *s, size_t len, int width, int left) {
+static int emit_padded(const char *s, size_t len, int width, int left, char pad_ch) {
     int pad = (width > (int) len) ? width - (int) len : 0;
     int printed = 0;
     if (!left)
-        for (int i = 0; i < pad; i++) { putChar(' '); printed++; }
+        for (int i = 0; i < pad; i++) { putChar(pad_ch); printed++; }
     write(1, s, len);
     printed += (int) len;
     if (left)
@@ -119,8 +117,11 @@ static int u_vprintf(const char *fmt, va_list ap)
             break;
 
         // 1) flags
-        int left = 0;
-        while (*p == '-') { left = 1; ++p; }
+        int left = 0, zero_pad = 0;
+        while (*p == '-' || *p == '0') {
+            if (*p == '-') left = 1; else zero_pad = 1;
+            ++p;
+        }
         // 2) ancho de campo
         int width = 0;
         while (*p >= '0' && *p <= '9') { width = width * 10 + (*p - '0'); ++p; }
@@ -178,7 +179,14 @@ static int u_vprintf(const char *fmt, va_list ap)
             break;
         }
 
-        printed += emit_padded(out, n, width, left);
+        char pad_ch = ' ';
+        if (zero_pad && !left) {
+            switch (*p) {
+            case 'd': case 'i': case 'u': case 'x': case 'p': pad_ch = '0'; break;
+            default: break;
+            }
+        }
+        printed += emit_padded(out, n, width, left, pad_ch);
     }
     return printed;
 }

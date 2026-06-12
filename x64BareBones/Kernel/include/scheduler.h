@@ -4,6 +4,10 @@
 #include "process.h"
 #include <stdint.h>
 
+#define MAX_QUANTUMS 4
+#define MIN_PRIORITY 0
+#define MAX_PRIORITY (MAX_QUANTUMS - 1)
+
 void initScheduler(PCB *idleProcess);
 void addProcess(PCB *pcb);
 uint64_t schedule(uint64_t currentRSP); // retorna nuevo RSP a cargar
