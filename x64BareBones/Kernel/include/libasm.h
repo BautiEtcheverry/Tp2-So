@@ -25,4 +25,9 @@ void picSlaveMask(uint8_t mask);
 // sti sets the interrupt flag(IF) to 1, to enable interrupts.
 void sti_enable(void);
 
-#endif 
+// Atomic exchange: intercambia *addr con value y devuelve el valor previo
+// en una sola operacion atomica (XCHG con memoria lleva LOCK implicito en x86).
+// Primitiva base para spinlocks.
+uint32_t atomic_xchg(volatile uint32_t *addr, uint32_t value);
+
+#endif

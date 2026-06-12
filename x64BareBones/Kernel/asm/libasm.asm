@@ -11,6 +11,7 @@ GLOBAL inl
 GLOBAL outl
 GLOBAL cpu_halt
 GLOBAL read_tsc_asm
+GLOBAL atomic_xchg
 
 ;Funcion para solucionar problema de pantalla negra por que al comenzar el rtc que en arqui
 ;usabamos para calcular los fps no para de interrumpir (INT 0x28) y como el loader.asm no hace
@@ -165,6 +166,16 @@ sti_enable:
 ; void cpu_cli(void);
 cpu_cli:
     cli
+    ret
+
+; uint32_t atomic_xchg(volatile uint32_t *addr, uint32_t value);
+;   RDI: addr, RSI: value
+; Intercambia atomicamente *addr con value y devuelve el valor previo.
+; XCHG con memoria es implicitamente atomico en x86 (lleva LOCK incorporado),
+; por lo que sirve como primitiva para construir spinlocks.
+atomic_xchg:
+    mov eax, esi
+    xchg [rdi], eax
     ret
 
 ; uint64_t read_tsc_asm(void);
