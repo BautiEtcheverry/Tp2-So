@@ -95,8 +95,35 @@ void *alloc_memory(memory_manager_ADT mm, size_t size) {
 }
 
 void free_memory(memory_manager_ADT mm, void *ptr) {
-	(void) mm;
-	(void) ptr;
+	if (mm == NULL || ptr == NULL) {
+		return;
+	}
+	fl_node_t *block = ((fl_node_t *) ptr) - 1;
+	if (block->free) {
+		return; // double free, ignorar
+	}
+	block->free = true;
+	mm->allocated_blocks--;
+	mm->total_allocated -= block->size;
+
+	// Coalesce con el vecino derecho si está libre.
+	fl_node_t *next = block->next;
+	if (next != NULL && next->free) {
+		block->size += sizeof(fl_node_t) + next->size;
+		block->next = next->next;
+		if (next->next != NULL) {
+			next->next->prev = block;
+		}
+	}
+	// Coalesce con el vecino izquierdo si está libre (el bloque resultante queda en prev).
+	fl_node_t *prev = block->prev;
+	if (prev != NULL && prev->free) {
+		prev->size += sizeof(fl_node_t) + block->size;
+		prev->next = block->next;
+		if (block->next != NULL) {
+			block->next->prev = prev;
+		}
+	}
 }
 
 mem_info_t get_mem_status(memory_manager_ADT mm) {
