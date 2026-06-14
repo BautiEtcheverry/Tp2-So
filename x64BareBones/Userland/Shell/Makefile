@@ -5,7 +5,7 @@ MODULE=0000-shell.bin
 SOURCES=$(wildcard [^_]*.c) \
         $(wildcard core/*.c) \
         $(wildcard commands/*.c) $(wildcard commands/builtins/*.c) $(wildcard commands/programs/*.c) \
-        tests/test_util.c tests/syscall.c tests/test_mm.c
+        tests/test_util.c tests/syscall.c tests/test_mm.c tests/test_sync.c
 LIBS=../asm/uland_lib_syscalls.a
 all: $(MODULE)
 

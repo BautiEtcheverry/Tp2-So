@@ -71,6 +71,12 @@ static int test_mm_wrapper(int argc, char *argv[]) {
 	test_mm(argc, argv);
 	return 0;
 }
+static int test_sync_wrapper(int argc, char *argv[]) {
+	/* test_sync espera solo sus operandos (n, use_sem); la shell incluye el
+	 * nombre del comando en argv[0], así que lo salteamos. */
+	if (argc < 1) return -1;
+	return (int)test_sync((uint64_t)(argc - 1), argv + 1);
+}
 
 const Command commands[] = {
 	{"help",        help,                "Usage and commands",                              CAT_GENERAL, BUILTIN},
@@ -96,6 +102,7 @@ const Command commands[] = {
 	{"wc",          wc_main,             "Count lines from stdin",                          CAT_IPC,     PROGRAM},
 	{"filter",      filter_main,         "Filter vowels from stdin",                        CAT_IPC,     PROGRAM},
 	{"test_mm",     test_mm_wrapper,     "Memory manager stress test: test_mm <max_bytes>", CAT_TEST,    PROGRAM},
+	{"test_sync",   test_sync_wrapper,   "Semaphore test: test_sync <n> <use_sem 0|1>",     CAT_TEST,    PROGRAM},
 	{NULL, NULL, NULL, 0, 0}
 };
 

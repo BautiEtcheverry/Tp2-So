@@ -61,7 +61,12 @@ enum
     SYS_GET_PROCESSES = 35,
     SYS_YIELD = 36,
 
-    /* 37-41 reservados para semáforos */
+    /* Semáforos */
+    SYS_SEM_OPEN  = 37,
+    SYS_SEM_WAIT  = 38,
+    SYS_SEM_POST  = 39,
+    SYS_SEM_CLOSE = 40,
+
     SYS_SET_FOREGROUND = 42,
 
     SYS_EXIT = 60,
@@ -304,6 +309,36 @@ static inline void pipe_close_read(int pipe_id) {
  */
 static inline int pipe_set_fd(int pipe_id, int fd_slot) {
     return (int)sys_3p(SYS_PIPE_SET_FD, (uint64_t)pipe_id, (uint64_t)fd_slot, 0);
+}
+
+/* 
+    Semáforos                                                            
+/* 
+
+/*
+ * sem_open(name, initial_value):
+ *   Abre un semáforo nombrado (procesos no relacionados lo comparten
+ *   acordando el mismo `name`). Si ya existe, retorna su id (incrementa el
+ *   refcount). 
+ *   Retorna el id (>= 0) o -1 si no hay slots libres.
+ */
+static inline int sem_open(const char *name, uint64_t initial_value) {
+    return (int)sys_3p(SYS_SEM_OPEN, (uint64_t)name, initial_value, 0);
+}
+
+/* decrementa; bloquea si el valor pasa a < 0. Retorna 0 o -1. */
+static inline int sem_wait(int sem_id) {
+    return (int)sys_1p(SYS_SEM_WAIT, (uint64_t)sem_id);
+}
+
+/* incrementa; despierta a un proceso bloqueado si lo hay. Rotorna 0 o -1. */
+static inline int sem_post(int sem_id) {
+    return (int)sys_1p(SYS_SEM_POST, (uint64_t)sem_id);
+}
+
+/* Cierra el semáforo (refcount--). Libera el slot al llegar a 0. Retorna 0 o -1. */
+static inline int sem_close(int sem_id) {
+    return (int)sys_1p(SYS_SEM_CLOSE, (uint64_t)sem_id);
 }
 
 /* ------------------------------------------------------------------ */
