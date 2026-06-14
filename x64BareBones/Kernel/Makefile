@@ -1,8 +1,18 @@
 include Makefile.inc
 
 KERNEL=kernel.bin
-SOURCES=$(wildcard *.c cdrivers/*.c memory/*.c processes/*.c ipc/*.c)
-SOURCES_ASM=$(wildcard asm/*.asm) 
+
+# Selección del memory manager en tiempo de compilación.
+# Default: free list. `make MM=buddy` o `make buddy` desde la raíz para buddy system.
+ifeq ($(MM),buddy)
+MM_SRC=memory/buddy.c
+GCCFLAGS+=-DUSE_BUDDY
+else
+MM_SRC=memory/free_list.c
+endif
+
+SOURCES=$(wildcard *.c cdrivers/*.c processes/*.c ipc/*.c) $(MM_SRC)
+SOURCES_ASM=$(wildcard asm/*.asm)
 OBJECTS=$(SOURCES:.c=.o)
 OBJECTS_ASM=$(SOURCES_ASM:.asm=.o)
 LOADERSRC=loader.asm
@@ -13,7 +23,7 @@ STATICLIBS=
 
 all: $(KERNEL)
 
-$(KERNEL): $(LOADEROBJECT) $(OBJECTS) $(STATICLIBS) $(OBJECTS_ASM) 
+$(KERNEL): $(LOADEROBJECT) $(OBJECTS) $(STATICLIBS) $(OBJECTS_ASM)
 	$(LD) $(LDFLAGS) -T kernel.ld -o $(KERNEL) $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(STATICLIBS)
 
 %.o: %.c
@@ -21,7 +31,7 @@ $(KERNEL): $(LOADEROBJECT) $(OBJECTS) $(STATICLIBS) $(OBJECTS_ASM)
 
 %.o : %.asm
 	$(ASM) $(ASMFLAGS) $< -o $@
-	
+
 $(LOADEROBJECT):
 	$(ASM) $(ASMFLAGS) $(LOADERSRC) -o $(LOADEROBJECT)
 
