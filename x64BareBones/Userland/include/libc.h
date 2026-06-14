@@ -140,12 +140,13 @@ static inline void clear_screen(void){
     (void)sys_1p(SYS_CLEAR, 0);
 }
 
-static inline void puts(const char *s){
+static inline int puts(const char *s){
     // compute length
     size_t n = 0;
     while (s[n])
         n++;
     write(1, s, n);
+    return (int)n;   // firma compatible con <stdio.h>: int puts(const char*)
 }
 
 // Absolute value function
@@ -313,7 +314,7 @@ static inline int pipe_set_fd(int pipe_id, int fd_slot) {
 
 /* 
     Semáforos                                                            
-/* 
+*/ 
 
 /*
  * sem_open(name, initial_value):
