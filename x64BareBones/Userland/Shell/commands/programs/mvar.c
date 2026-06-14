@@ -35,8 +35,15 @@ static const uint32_t reader_colors[MAX_READERS] = {
 
 /* ---- Estado compartido (todos los procesos comparten el address space) ---- */
 static volatile char box;   /* el valor en la MVar */
-static int sem_empty;       /* id del semáforo "hay lugar"  */
-static int sem_full;        /* id del semáforo "hay valor"  */
+
+/*
+ * Nombres de los dos semáforos de la MVar. Cada hijo los abre por su cuenta
+ * (sem_open por nombre devuelve el mismo id a todos), así son los hijos los que
+ * tienen el refcount: al matarlos a todos, el kernel libera los semáforos y la
+ * próxima corrida los crea frescos. Por eso main NO los abre.
+ */
+#define SEM_EMPTY "mvar_empty"   /* "hay lugar para escribir" (init 1) */
+#define SEM_FULL  "mvar_full"    /* "hay un valor para leer"  (init 0) */
 
 /*
  * argv de los hijos: debe persistir después de que main retorne, así que vive
@@ -60,11 +67,13 @@ static void active_wait_random(void) {
 static int mvar_writer(int argc, char *argv[]) {
     (void)argc;
     char letter = argv[1][0];
+    int empty = sem_open(SEM_EMPTY, 1);
+    int full  = sem_open(SEM_FULL, 0);
     while (1) {
         active_wait_random();
-        sem_wait(sem_empty);      /* esperar a que la caja esté vacía */
+        sem_wait(empty);          /* esperar a que la caja esté vacía */
         box = letter;
-        sem_post(sem_full);       /* avisar que hay un valor */
+        sem_post(full);           /* avisar que hay un valor */
     }
     return 0;
 }
@@ -73,14 +82,16 @@ static int mvar_writer(int argc, char *argv[]) {
 static int mvar_reader(int argc, char *argv[]) {
     (void)argc;
     uint32_t color = reader_colors[argv[1][0] - '0'];
+    int empty = sem_open(SEM_EMPTY, 1);
+    int full  = sem_open(SEM_FULL, 0);
     while (1) {
         active_wait_random();
-        sem_wait(sem_full);       /* esperar a que haya un valor */
+        sem_wait(full);           /* esperar a que haya un valor */
         char c = box;
         set_text_color(color);
         char s[2] = { c, 0 };
         puts(s);
-        sem_post(sem_empty);      /* avisar que la caja quedó vacía */
+        sem_post(empty);          /* avisar que la caja quedó vacía */
     }
     return 0;
 }
@@ -99,13 +110,9 @@ int mvar_main(int argc, char *argv[]) {
         return -1;
     }
 
-    /* Semáforos de la MVar: la caja arranca vacía. */
-    sem_empty = sem_open("mvar_empty", 1);
-    sem_full  = sem_open("mvar_full", 0);
-    if (sem_empty < 0 || sem_full < 0) {
-        printf("mvar: error creando semaforos\n");
-        return -1;
-    }
+    /* La caja arranca vacía. Los semáforos los abren los propios hijos
+     * (ver SEM_EMPTY/SEM_FULL): así el refcount lo tienen ellos y al matarlos
+     * el kernel los libera, evitando reusar estado viejo entre corridas. */
     box = 0;
 
     /* Crear escritores: cada uno con una letra distinta ('A', 'B', ...). */
