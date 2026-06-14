@@ -54,9 +54,44 @@ memory_manager_ADT create_memory_manager(void *start_address, size_t size) {
 }
 
 void *alloc_memory(memory_manager_ADT mm, size_t size) {
-	(void) mm;
-	(void) size;
-	return NULL; // se implementa en el próximo commit
+	if (mm == NULL || size == 0) {
+		return NULL;
+	}
+	size = ALIGN_UP(size);
+	if (size < MIN_PAYLOAD) {
+		size = MIN_PAYLOAD;
+	}
+
+	// First-fit: recorro la lista física desde el primer bloque y agarro el primer libre que entre.
+	fl_node_t *curr = mm->first;
+	while (curr != NULL) {
+		if (curr->free && curr->size >= size) {
+			break;
+		}
+		curr = curr->next;
+	}
+	if (curr == NULL) {
+		return NULL; // no hay bloque libre suficientemente grande
+	}
+
+	// Split: si sobra espacio para otro header + payload mínimo, parto el bloque en dos.
+	if (curr->size >= size + sizeof(fl_node_t) + MIN_PAYLOAD) {
+		fl_node_t *resto = (fl_node_t *) ((char *) (curr + 1) + size);
+		resto->size = curr->size - size - sizeof(fl_node_t);
+		resto->free = true;
+		resto->next = curr->next;
+		resto->prev = curr;
+		if (curr->next != NULL) {
+			curr->next->prev = resto;
+		}
+		curr->next = resto;
+		curr->size = size;
+	}
+
+	curr->free = false;
+	mm->allocated_blocks++;
+	mm->total_allocated += curr->size;
+	return (void *) (curr + 1);
 }
 
 void free_memory(memory_manager_ADT mm, void *ptr) {
