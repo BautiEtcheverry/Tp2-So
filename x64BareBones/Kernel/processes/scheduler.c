@@ -1,6 +1,7 @@
 #include "scheduler.h"
 #include "process.h"
 #include "pipe.h"
+#include "sem.h"
 #include "libasm.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -121,6 +122,8 @@ void killProcess(uint64_t pid) {
 			/* Cerrar pipes del proceso si tiene alguno abierto */
 			if (IS_PIPE_FD(p->fd[0])) pipe_close_read(PIPE_FD_TO_ID(p->fd[0]));
 			if (IS_PIPE_FD(p->fd[1])) pipe_close_write(PIPE_FD_TO_ID(p->fd[1]));
+			/* Sacarlo de las colas de semáforos donde estuviera bloqueado */
+			sem_release_waiter(pid);
 			p->state = DEAD;
 			if (p == current)
 				quantums_remaining = 0;

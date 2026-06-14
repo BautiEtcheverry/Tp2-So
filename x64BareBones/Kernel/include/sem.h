@@ -27,4 +27,10 @@ int sem_post(int id);
 /* Cierra el semáforo. Cuando no quedan usuarios (refcount 0), libera el slot. */
 int sem_close(int id);
 
+/*
+ * Saca a `pid` de las colas de espera de todos los semáforos y deshace su
+ * sem_wait pendiente. La llama el scheduler al matar un proceso bloqueado.
+ */
+void sem_release_waiter(uint64_t pid);
+
 #endif

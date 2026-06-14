@@ -52,6 +52,27 @@ static uint64_t dequeue_waiter(Sem *s) {
 	return pid;
 }
 
+/* Saca una ocurrencia de `pid` de la cola, compactando. Retorna 1 si estaba. */
+static int remove_waiter(Sem *s, uint64_t pid) {
+	uint64_t tmp[MAX_SEM_WAITERS];
+	int idx = s->wait_head, m = 0, found = 0;
+	for (int i = 0; i < s->wait_count; i++) {
+		uint64_t p = s->waiters[idx];
+		idx = (idx + 1) % MAX_SEM_WAITERS;
+		if (p == pid && !found)
+			found = 1;       /* saltear una sola ocurrencia */
+		else
+			tmp[m++] = p;
+	}
+	if (found) {
+		for (int i = 0; i < m; i++)
+			s->waiters[i] = tmp[i];
+		s->wait_head = 0;
+		s->wait_count = m;
+	}
+	return found;
+}
+
 /*--------------------- API ---------------------*/
 void sem_init(void) {
 	for (int i = 0; i < MAX_SEMS; i++) {
@@ -184,4 +205,22 @@ int sem_close(int id) {
 
 	irq_restore(flags);
 	return 0;
+}
+
+/*
+ * Saca a `pid` de las colas de todos los semáforos donde estuviera bloqueado
+ * y deshace su sem_wait (value++), manteniendo la contabilidad consistente.
+ * La llama el scheduler cuando un proceso bloqueado es matado, así su wakeup
+ * no se pierde y el semáforo no queda desfasado.
+ */
+void sem_release_waiter(uint64_t pid) {
+	uint64_t flags = irq_save();
+	for (int i = 0; i < MAX_SEMS; i++) {
+		Sem *s = &sems[i];
+		if (!s->in_use || s->wait_count == 0)
+			continue;
+		if (remove_waiter(s, pid))
+			s->value++;
+	}
+	irq_restore(flags);
 }
