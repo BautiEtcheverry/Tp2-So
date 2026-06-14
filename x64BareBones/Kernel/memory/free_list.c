@@ -128,7 +128,12 @@ void free_memory(memory_manager_ADT mm, void *ptr) {
 
 mem_info_t get_mem_status(memory_manager_ADT mm) {
 	mem_info_t status = {0};
-	(void) mm;
+	if (mm != NULL) {
+		status.total_memory = mm->total_size;
+		status.used_memory = mm->total_allocated;
+		status.free_memory = status.total_memory - status.used_memory;
+		status.allocated_blocks = mm->allocated_blocks;
+	}
 	return status;
 }
 
