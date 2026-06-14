@@ -1,5 +1,6 @@
 #include "pipe.h"
 #include "scheduler.h"
+#include "libasm.h"
 #include <stddef.h>
 
 static Pipe pipes[MAX_PIPES];
@@ -63,9 +64,11 @@ int pipe_write(int id, const char *buf, int len) {
             if (p->read_closed)
                 return written;  /* el lector desapareció */
 
+            cpu_cli();
             p->blocked_writer = getCurrentPID();
             blockProcess(getCurrentPID());
-            __asm__ volatile("hlt"); /* cede CPU hasta el próximo tick del timer */
+            sti_enable();
+            cpu_halt();
             p->blocked_writer = 0;
         }
 
@@ -95,9 +98,11 @@ int pipe_read(int id, char *buf, int len) {
         if (p->write_closed)
             return 0;  /* EOF: el escritor cerró y no quedan datos */
 
+        cpu_cli();
         p->blocked_reader = getCurrentPID();
         blockProcess(getCurrentPID());
-        __asm__ volatile("hlt"); /* cede CPU hasta el próximo tick del timer */
+        sti_enable();
+        cpu_halt();
         p->blocked_reader = 0;
     }
 

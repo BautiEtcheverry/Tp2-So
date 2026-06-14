@@ -7,8 +7,12 @@ int cmd_nice(int argc, char *argv[]) {
 	}
 	uint64_t pid  = str_to_uint(argv[1]);
 	int prio = (int) str_to_uint(argv[2]);
+	if (prio < 0 || prio > 3) {
+		printf("nice: prioridad invalida %d (rango valido: 0-3)\n", prio);
+		return 1;
+	}
 	if (nice(pid, prio) < 0) {
-		printf("nice: no such process %u\n", (unsigned) pid);
+		printf("nice: proceso %u no encontrado o protegido\n", (unsigned) pid);
 		return 1;
 	}
 	return 0;

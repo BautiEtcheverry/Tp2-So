@@ -190,9 +190,7 @@ static inline void regs_print(void){
 
 static inline int getchar(void){
     char c;
-    while (read(0, &c, 1) == 0)
-    {
-    }
+    if (read(0, &c, 1) == 0) return -1;  /* EOF: Ctrl+D o pipe cerrado */
     return (int)(unsigned char)c;
 }
 
@@ -235,6 +233,7 @@ static inline size_t readline(char *buf, size_t max){
     while (n + 1 < max)
     {
         int ch = getchar();
+        if (ch == -1) break;  /* EOF (Ctrl+D) */
         if (ch == '\r')
             ch = '\n';
         if (ch == '\n')

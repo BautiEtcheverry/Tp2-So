@@ -1,6 +1,7 @@
 #include "scheduler.h"
 #include "process.h"
 #include "pipe.h"
+#include "libasm.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -10,7 +11,6 @@
  * priority N → max(1, MAX_QUANTUMS - N) ticks por turno
  * Proceso bloqueado o muerto = nunca scheduleable.
  */
-#define MAX_QUANTUMS 4
 
 static void wakeWaiters(uint64_t dead_pid);
 static int hasWaiter(uint64_t pid);
@@ -169,7 +169,7 @@ void exitCurrentProcess(int status) {
 		wakeWaiters(cur->pid);
 	}
 	while (1)
-		__asm__ volatile("hlt");
+		cpu_halt();
 }
 
 
@@ -268,7 +268,7 @@ int waitForProcess(uint64_t pid) {
 	cur->state = BLOCKED;
 	quantums_remaining = 0;
 	while (((volatile ProcessState) cur->state) == BLOCKED)
-		__asm__ volatile("hlt");
+		cpu_halt();
 
 	/* El proceso murió y wakeWaiters nos desbloqueó —
 	 * target sigue válido porque aún no fue reaped */

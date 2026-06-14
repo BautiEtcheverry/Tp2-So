@@ -50,7 +50,7 @@ int idleMain(int argc, char **argv) {
 	(void) argc;
 	(void) argv;
 	while (1)
-		__asm__ volatile("hlt");
+		cpu_halt();
 	return 0;
 }
 int shellMain(int argc, char **argv) {
@@ -138,7 +138,7 @@ int main() {
 	sem_init();
 
 	// Crear proceso idle (se ejecuta cuando no hay otros ready)
-	PCB *idleProc = createProcess("idle", idleMain, 0, NULL, 255, 0);
+	PCB *idleProc = createProcess("idle", idleMain, 0, NULL, 3, 0);
 	initScheduler(idleProc);
 
 	// Crear proceso shell (primer proceso de usuario)
@@ -151,7 +151,7 @@ int main() {
 	// A partir de acá el scheduler toma el control via IRQ0
 	// Este código nunca llega más allá del primer tick
 	while (1) {
-		__asm__ volatile("hlt");
+		cpu_halt();
 	}
 	((EntryPoint) shellModuleAddress)();
 

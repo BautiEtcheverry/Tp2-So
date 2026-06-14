@@ -18,6 +18,12 @@ size_t readline_hist(char *buf, size_t max) {
 	for (;;) {
 		int ch = getchar();
 
+		if (ch == -1) {  /* EOF: Ctrl+D */
+			puts("\n");
+			buf[0] = 0;
+			return 0;
+		}
+
 		if (ch == '\r')
 			ch = '\n';
 
