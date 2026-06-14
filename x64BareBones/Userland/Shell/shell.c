@@ -149,7 +149,7 @@ static uint64_t fg_pid = 0;
 int main(void) {
     set_colors(0xFFFFFF, 0x272827);
     clear_screen();
-    printf("Shell iniciada. Escribi 'help' para ver los comandos.\n");
+    printf("Shell started. Write 'help' to se available commands.\n");
     /* Buffer ampliado para soportar cmd1 | cmd2 */
     char line[CMD_MAX_LEN * 2 + 4];
     char left[CMD_MAX_LEN + 2], right[CMD_MAX_LEN + 2];
@@ -242,4 +242,3 @@ int main(void) {
     return 0;
 }
 
-// --- Command history + tab navigation ---
