@@ -73,6 +73,20 @@ static int remove_waiter(Sem *s, uint64_t pid) {
 	return found;
 }
 
+/* Baja un refcount y libera el semáforo si llega a 0. El caller tiene irq tomado. */
+static void sem_drop(int id) {
+	Sem *s = &sems[id];
+	if (!s->in_use)
+		return;
+	if (--s->refs <= 0) {
+		s->in_use = 0;
+		/* Despertar a cualquiera que quedara esperando (sem destruido). */
+		uint64_t pid;
+		while ((pid = dequeue_waiter(s)) != 0)
+			unblockProcess(pid);
+	}
+}
+
 /*--------------------- API ---------------------*/
 void sem_init(void) {
 	for (int i = 0; i < MAX_SEMS; i++) {
@@ -106,23 +120,26 @@ int sem_open(const char *name, uint64_t initialValue) {
 	int id = find_by_name(name);
 	if (id != -1) {
 		sems[id].refs++;
-		irq_restore(flags);
-		return id;
+	} else {
+		id = find_free_slot();
+		if (id == -1) {
+			irq_restore(flags);
+			return -1;
+		}
+		Sem *s = &sems[id];
+		s->in_use = 1;
+		s->value = (int64_t) initialValue;
+		s->refs = 1;
+		s->wait_head = 0;
+		s->wait_count = 0;
+		name_copy(s->name, name);
 	}
 
-	id = find_free_slot();
-	if (id == -1) {
-		irq_restore(flags);
-		return -1;
-	}
-
-	Sem *s = &sems[id];
-	s->in_use = 1;
-	s->value = (int64_t) initialValue;
-	s->refs = 1;
-	s->wait_head = 0;
-	s->wait_count = 0;
-	name_copy(s->name, name);
+	/* Marcar que el proceso actual tiene este semáforo abierto, para liberarlo
+	 * automáticamente si el proceso muere sin cerrarlo (ver sem_release_owned). */
+	PCB *cur = getCurrentProcess();
+	if (cur)
+		cur->sems_opened |= (1u << id);
 
 	irq_restore(flags);
 	return id;
@@ -188,20 +205,16 @@ int sem_close(int id) {
 	if (id < 0 || id >= MAX_SEMS)
 		return -1;
 
-	Sem *s = &sems[id];
 	uint64_t flags = irq_save();
-	if (!s->in_use) {
+	if (!sems[id].in_use) {
 		irq_restore(flags);
 		return -1;
 	}
 
-	if (--s->refs <= 0) {
-		s->in_use = 0;
-		/* Despertar a cualquiera que quedara esperando (sem destruido). */
-		uint64_t pid;
-		while ((pid = dequeue_waiter(s)) != 0)
-			unblockProcess(pid);
-	}
+	PCB *cur = getCurrentProcess();
+	if (cur)
+		cur->sems_opened &= ~(1u << id);
+	sem_drop(id);
 
 	irq_restore(flags);
 	return 0;
@@ -222,5 +235,18 @@ void sem_release_waiter(uint64_t pid) {
 		if (remove_waiter(s, pid))
 			s->value++;
 	}
+	irq_restore(flags);
+}
+
+/*
+ * Cierra todos los semáforos que `mask` marca como abiertos por un proceso.
+ * La llama el scheduler cuando un proceso termina (muere o sale), para devolver
+ * sus referencias; el semáforo se libera recién cuando ya nadie lo tiene abierto.
+ */
+void sem_release_owned(uint32_t mask) {
+	uint64_t flags = irq_save();
+	for (int id = 0; id < MAX_SEMS; id++)
+		if (mask & (1u << id))
+			sem_drop(id);
 	irq_restore(flags);
 }

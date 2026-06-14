@@ -33,4 +33,11 @@ int sem_close(int id);
  */
 void sem_release_waiter(uint64_t pid);
 
+/*
+ * Cierra todos los semáforos marcados en `mask` (bitmask por id). La llama el
+ * scheduler al terminar un proceso, para devolver sus referencias y liberar
+ * el semáforo cuando ya nadie lo usa.
+ */
+void sem_release_owned(uint32_t mask);
+
 #endif

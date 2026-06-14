@@ -13,13 +13,14 @@ typedef struct PCB {
 	uint64_t stackBase;
 	uint64_t stackSize;
 	ProcessState state;
-	int priority;	// 0 = máxima, mayor número = menor prioridad
-	int foreground; // 1 si es foreground de la shell
-	int fd[2];		// fd[0]=stdin fd[1]=stdout — para pipes
-	int exit_status;   // Valor de salida, siguiendo estandar POSIX. Válido cuando state == DEAD
-	uint64_t wait_pid; // PID al que está esperando, 0 si no espera a nadie
-	
-    struct PCB *next;
+	int priority;		  // 0 = máxima, mayor número = menor prioridad
+	int foreground;		  // 1 si es foreground de la shell
+	int fd[2];			  // fd[0]=stdin fd[1]=stdout — para pipes
+	int exit_status;	  // Valor de salida, siguiendo estandar POSIX. Válido cuando state == DEAD
+	uint64_t wait_pid;	  // PID al que está esperando, 0 si no espera a nadie
+	uint32_t sems_opened; // bitmask de semáforos que este proceso tiene abiertos, tenemos 32 bits, entonces en funcion de que semaforo tiene tomado prendemos ese bit. Usa solo 4Bytes por proceso.
+
+	struct PCB *next;
 } PCB;
 
 typedef int (*ProcessMain)(int argc, char **argv);

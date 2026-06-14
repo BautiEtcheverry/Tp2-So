@@ -124,6 +124,8 @@ void killProcess(uint64_t pid) {
 			if (IS_PIPE_FD(p->fd[1])) pipe_close_write(PIPE_FD_TO_ID(p->fd[1]));
 			/* Sacarlo de las colas de semáforos donde estuviera bloqueado */
 			sem_release_waiter(pid);
+			/* Cerrar los semáforos que tuviera abiertos (devolver refcounts) */
+			sem_release_owned(p->sems_opened);
 			p->state = DEAD;
 			if (p == current)
 				quantums_remaining = 0;
@@ -166,6 +168,8 @@ void exitCurrentProcess(int status) {
 		/* Cerrar extremos de pipe si el proceso los tenía abiertos */
 		if (IS_PIPE_FD(cur->fd[0])) pipe_close_read(PIPE_FD_TO_ID(cur->fd[0]));
 		if (IS_PIPE_FD(cur->fd[1])) pipe_close_write(PIPE_FD_TO_ID(cur->fd[1]));
+		/* Cerrar los semáforos que el proceso tuviera abiertos */
+		sem_release_owned(cur->sems_opened);
 		cur->exit_status = status;
 		cur->state = DEAD;
 		quantums_remaining = 0;
