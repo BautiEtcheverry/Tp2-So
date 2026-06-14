@@ -46,6 +46,7 @@ int cmd_loop(int argc, char *argv[]);
 int cat_main(int argc, char *argv[]);
 int wc_main(int argc, char *argv[]);
 int filter_main(int argc, char *argv[]);
+int mvar_main(int argc, char *argv[]);
 int loop_main(int argc, char *argv[]);
 int endless_loop(int argc, char *argv[]);
 
@@ -101,6 +102,7 @@ const Command commands[] = {
 	{"cat",         cat_main,            "Print stdin to stdout",                           CAT_IPC,     PROGRAM},
 	{"wc",          wc_main,             "Count lines from stdin",                          CAT_IPC,     PROGRAM},
 	{"filter",      filter_main,         "Filter vowels from stdin",                        CAT_IPC,     PROGRAM},
+	{"mvar",        mvar_main,           "Readers/writers over an MVar: mvar <wr> <rd>",    CAT_IPC,     PROGRAM},
 	{"test_mm",     test_mm_wrapper,     "Memory manager stress test: test_mm <max_bytes>", CAT_TEST,    PROGRAM},
 	{"test_sync",   test_sync_wrapper,   "Semaphore test: test_sync <n> <use_sem 0|1>",     CAT_TEST,    PROGRAM},
 	{NULL, NULL, NULL, 0, 0}
