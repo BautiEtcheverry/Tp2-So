@@ -7,17 +7,11 @@ MM ?= default
 all:  toolchain bootloader kernel userland image
 
 # make buddy: rebuild completo seleccionando el buddy system
-buddy: MM := buddy
-buddy: all
+buddy:
+	$(MAKE) MM=buddy all
 
 toolchain:
 	cd Toolchain; make all
-
-buddy:
-	$(MAKE) MM=buddy all
-
-buddy:
-	$(MAKE) MM=buddy all
 
 bootloader:
 	cd Bootloader; make all

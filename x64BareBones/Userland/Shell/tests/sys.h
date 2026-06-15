@@ -56,7 +56,5 @@ static inline uint64_t getPid(void) {
     return getpid();
 }
 
-/* Programa del shell que usan los tests de procesos como "proceso dummy". */
-int endless_loop(int argc, char *argv[]);
 
 #endif // SYS_H
