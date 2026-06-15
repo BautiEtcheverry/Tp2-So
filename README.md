@@ -36,10 +36,11 @@ Salir con `exit` no detiene el contenedor; la próxima vez `./dev.sh` entra de i
 
 ### Compilar (dentro del contenedor)
 ```bash
-make            # compila con el memory manager por defecto
-# make buddy    # (a implementar) compila con buddy system
+make            # compila con el memory manager por defecto (elegido por el grupo)
+make buddy      # compila con el buddy system
 make clean
 ```
+> Para cambiar de un memory manager al otro conviene `make clean` antes (cambia el `.c` que se compila).
 
 ### Ejecutar (en el host, fuera del contenedor)
 ```bash
