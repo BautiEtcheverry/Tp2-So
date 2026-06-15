@@ -5,6 +5,7 @@
 #include "include/scheduler.h"
 #include "sem.h"
 #include <gfxConsole.h>
+#include <keyboard.h>
 #include <lib.h>
 #include <moduleLoader.h>
 #include <naiveConsole.h>
@@ -136,6 +137,7 @@ int main() {
 	ncPrint("  Jumping to shell...\n");
 	pipe_init();
 	sem_init();
+	kbd_sem_init();   /* después de sem_init: crea el semáforo de lectura de teclado */
 
 	// Crear proceso idle (se ejecuta cuando no hay otros ready)
 	PCB *idleProc = createProcess("idle", idleMain, 0, NULL, 3, 0);

@@ -89,18 +89,32 @@ static uint64_t sys_write_screen(const char *buf, size_t n)
     static char kernel_buffer[8192];
     if (n > sizeof(kernel_buffer) - 1)
         n = sizeof(kernel_buffer) - 1;
+
+    /* kernel_buffer y el estado del cursor del driver son compartidos por todos
+     * los procesos. Sin protección, dos write() concurrentes (uno preemptado a
+     * mitad) se pisan el buffer / corrompen el cursor -> race condition.
+     * La sección es corta, así que alcanza con deshabilitar interrupciones
+     * (no usamos semáforo: un mutex acá podría quedar trabado si se mata al
+     * proceso mientras lo tiene tomado, congelando TODA la salida). */
+    uint64_t flags = irq_save();
+
     memcpy(kernel_buffer, buf, n);
     kernel_buffer[n] = '\0';
 
-    if (videoIsLFB())
-        return (uint64_t)gfx_write(kernel_buffer, n);
-
-    for (size_t i = 0; i < n; i++) {
-        char c = kernel_buffer[i];
-        if (c == '\n') ncNewline();
-        else           ncPrintChar(c);
+    uint64_t ret;
+    if (videoIsLFB()) {
+        ret = (uint64_t)gfx_write(kernel_buffer, n);
+    } else {
+        for (size_t i = 0; i < n; i++) {
+            char c = kernel_buffer[i];
+            if (c == '\n') ncNewline();
+            else           ncPrintChar(c);
+        }
+        ret = (uint64_t)n;
     }
-    return (uint64_t)n;
+
+    irq_restore(flags);
+    return ret;
 }
 
 static uint64_t sys_write(uint64_t fd, const char *buf, uint64_t len)
@@ -150,31 +164,21 @@ static uint64_t sys_read(uint64_t fd, char *buf, uint64_t len)
     if (IS_PIPE_FD(resource))
         return (uint64_t)pipe_read(PIPE_FD_TO_ID(resource), buf, (int)len);
 
-    /* Ctrl+D pendiente del read anterior — devolver EOF */
-    static int kbd_eof_pending = 0;
-    if (kbd_eof_pending) {
-        kbd_eof_pending = 0;
+    /* Recurso 0 = teclado: bloquear (sin busy-wait) hasta tener un carácter.
+     * kbd_read_blocking hace sem_wait sobre el semáforo del teclado; el ISR hace
+     * sem_post por cada tecla, así el proceso queda BLOCKED (no gira) mientras espera. */
+    char c = kbd_read_blocking();
+
+    if (c == 0x04) {            /* Ctrl+D = EOF */
+        sys_write_screen("\n", 1);
         return 0;
     }
-
-    /* Recurso 0 = teclado */
-    while (kbd_available() == 0) { cpu_halt(); }
-    size_t n = kbd_read(buf, len);
-
-    for (size_t i = 0; i < n; i++) {
-        if (buf[i] == 0x04) {
-            /* Newline visual al Ctrl+D para que el cursor quede en línea nueva.
-             * Solo si había texto antes (i > 0) o el cursor no estaba en nueva línea. */
-            sys_write_screen("\n", 1);
-            if (i > 0) kbd_eof_pending = 1;
-            return (uint64_t)i;
-        }
-        if (buf[i] == 0x03) {
-            kill_foreground();
-            return (uint64_t)i;
-        }
+    if (c == 0x03) {            /* Ctrl+C (normalmente ya lo atrapa el ISR antes de encolar) */
+        kill_foreground();
+        return 0;
     }
-    return (uint64_t)n;
+    buf[0] = c;
+    return 1;
 }
 
 

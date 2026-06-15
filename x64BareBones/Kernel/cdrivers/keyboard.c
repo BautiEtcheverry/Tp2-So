@@ -3,6 +3,7 @@
 
 //To avoid use in-line ASM(not allowed by the professors).
 #include <libasm.h>
+#include <sem.h>
 extern uint64_t capture_provisoria[19];
 extern uint64_t capture_definitiva[19];
 
@@ -10,6 +11,11 @@ extern uint64_t capture_definitiva[19];
 static volatile char kbuf[KBD_BUF_SIZE];
 static volatile unsigned int head = 0; // write
 static volatile unsigned int tail = 0; // read
+
+/* Semáforo que cuenta caracteres disponibles en el buffer: el ISR hace sem_post
+ * por cada tecla y el lector hace sem_wait, así espera bloqueado (sin busy-wait)
+ * en vez de girar consultando kbd_available(). -1 = todavía no inicializado. */
+static int kbd_sem = -1;
 
 static const char keymap[128] = {
     [0x48] = 72, [0x50] = 80, [0x4D] = 77, [0x4B] = 75, [0x01] = 27, 
@@ -103,6 +109,8 @@ void keyboard_isr_handler(uint8_t scancode)
     }
     kbuf[head] = ch;
     head = next;
+    if (kbd_sem >= 0)
+        sem_post(kbd_sem);   /* despertar a un proceso que esté esperando una tecla */
 }
 
 
@@ -121,14 +129,23 @@ void keyboard_init(void){
     e0_prefix = 0;
 }
 
-char keyboard_getchar(void){
-    // Block until available
-    while (kbd_available() == 0) {
-       cpu_halt();
-    }
-    char c;
+/* Crea el semáforo de teclado. Llamar desde kernel_init DESPUÉS de sem_init().
+ * value inicial 0: arranca sin caracteres disponibles. */
+void kbd_sem_init(void){
+    kbd_sem = sem_open("__kbd", 0);
+}
+
+/* Lee un carácter bloqueando el proceso (vía sem_wait) hasta que el ISR
+ * señale que hay uno. Reemplaza al busy-wait con kbd_available(). */
+char kbd_read_blocking(void){
+    char c = 0;
+    sem_wait(kbd_sem);
     (void)kbd_read(&c, 1);
     return c;
+}
+
+char keyboard_getchar(void){
+    return kbd_read_blocking();
 }
 
 void keyboard_clear_buffer(void){

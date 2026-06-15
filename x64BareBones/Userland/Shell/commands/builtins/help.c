@@ -23,7 +23,7 @@ int help(int argc, char *argv[]) {
 			if (commands[i].category != sections[s].cat)
 				continue;
 			if (first) { // imprime el título solo si la sección tiene comandos
-				printf("\n%s:\n", sections[s].title);
+				printf("%s:\n", sections[s].title);
 				first = 0;
 			}
 			printf("  %-14s %s\n", commands[i].name, commands[i].help);
