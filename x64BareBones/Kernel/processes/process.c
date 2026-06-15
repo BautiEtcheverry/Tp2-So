@@ -42,6 +42,7 @@ PCB *createProcess(const char *name, ProcessMain entry, int argc, char **argv, i
 	pcb->exit_status = 0;
 	pcb->wait_pid    = 0;
 	pcb->sems_opened = 0;
+	pcb->paused      = 0;
 
 	pcb->rsp = _init_process_stack(pcb->stackBase + PROCESS_STACK_SIZE, entry, (int64_t) argc, argv, process_exit_helper);
 

@@ -57,18 +57,19 @@ uint64_t schedule(uint64_t currentRSP) {
 	if (current != NULL && current->state == DEAD && !hasWaiter(current->pid))
 		reapProcess(current->pid); /* pone current = NULL internamente */
 
-	/* Si al proceso actual le quedan quantums y sigue listo, continúa */
-	if (current != NULL && current->state == READY && quantums_remaining > 0) {
+	/* Si al proceso actual le quedan quantums y sigue listo (y no fue pausado
+	 * manualmente), continúa */
+	if (current != NULL && current->state == READY && !current->paused && quantums_remaining > 0) {
 		quantums_remaining--;
 		return current->rsp;
 	}
 
-	/* Buscar el siguiente proceso READY (no idle) en orden circular */
+	/* Buscar el siguiente proceso READY y no pausado (no idle) en orden circular */
 	PCB *start = (current != NULL) ? current->next : head;
 	PCB *p = start;
 	PCB *found = NULL;
 	do {
-		if (p->state == READY && p != idle_proc) {
+		if (p->state == READY && !p->paused && p != idle_proc) {
 			found = p;
 			break;
 		}
@@ -110,6 +111,26 @@ void unblockProcess(uint64_t pid) {
 		}
 		p = p->next;
 	} while (p != head);
+}
+
+/* Bloqueo manual (comando block): marca paused. No toca el state, así no
+ * interfiere con un bloqueo por semáforo/pipe/waitpid. */
+void pauseProcess(uint64_t pid) {
+	PCB *p = findProcess(pid);
+	if (!p)
+		return;
+	p->paused = 1;
+	if (p == current)
+		quantums_remaining = 0; /* si es el actual, que ceda el CPU ya */
+}
+
+/* Desbloqueo manual (comando unblock): solo limpia paused. NO despierta a un
+ * proceso dormido en un semáforo (ese sigue con state == BLOCKED). */
+void resumeProcess(uint64_t pid) {
+	PCB *p = findProcess(pid);
+	if (!p)
+		return;
+	p->paused = 0;
 }
 
 void killProcess(uint64_t pid) {

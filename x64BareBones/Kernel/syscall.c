@@ -353,15 +353,18 @@ static uint64_t sys_block(uint64_t pid) {
     PCB *p = findProcess(pid);
     if (!p || p->state == DEAD)
         return (uint64_t)-1;
-    blockProcess(pid);
+    /* Bloqueo MANUAL: marca paused (no toca el bloqueo por semáforo/pipe/waitpid). */
+    pauseProcess(pid);
     return 0;
 }
 
 static uint64_t sys_unblock(uint64_t pid) {
     PCB *p = findProcess(pid);
-    if (!p || p->state != BLOCKED)
+    if (!p || p->state == DEAD)
         return (uint64_t)-1;
-    unblockProcess(pid);
+    /* Desbloqueo MANUAL: solo limpia paused. Un proceso dormido en un semáforo
+     * NO se despierta por acá (sigue con state == BLOCKED). */
+    resumeProcess(pid);
     return 0;
 }
 

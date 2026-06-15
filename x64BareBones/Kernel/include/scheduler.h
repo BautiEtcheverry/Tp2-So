@@ -11,8 +11,14 @@
 void initScheduler(PCB *idleProcess);
 void addProcess(PCB *pcb);
 uint64_t schedule(uint64_t currentRSP); // retorna nuevo RSP a cargar
+/* Bloqueo por recurso (semáforo/pipe/waitpid): cambian state a BLOCKED/READY. */
 void blockProcess(uint64_t pid);
 void unblockProcess(uint64_t pid);
+/* Bloqueo MANUAL (comando block/unblock): marcan/limpian el flag `paused`, sin
+ * tocar el estado de bloqueo por recurso. Así desbloquear manualmente NO puede
+ * despertar a un proceso dormido en un semáforo. */
+void pauseProcess(uint64_t pid);
+void resumeProcess(uint64_t pid);
 void killProcess(uint64_t pid);
 void setPriority(uint64_t pid, int priority);
 PCB *getCurrentProcess();

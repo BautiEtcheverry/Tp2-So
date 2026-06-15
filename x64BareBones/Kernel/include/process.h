@@ -19,6 +19,7 @@ typedef struct PCB {
 	int exit_status;	  // Valor de salida, siguiendo estandar POSIX. Válido cuando state == DEAD
 	uint64_t wait_pid;	  // PID al que está esperando, 0 si no espera a nadie
 	uint32_t sems_opened; // bitmask de semáforos que este proceso tiene abiertos, tenemos 32 bits, entonces en funcion de que semaforo tiene tomado prendemos ese bit. Usa solo 4Bytes por proceso.
+	int paused;			  // 1 si fue bloqueado MANUALMENTE (comando block); ortogonal a state==BLOCKED (semáforo/pipe/waitpid). El scheduler no corre un proceso paused.
 
 	struct PCB *next;
 } PCB;
