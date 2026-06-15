@@ -17,6 +17,7 @@ uint64_t test_mm(uint64_t argc, char *argv[]) {
 	uint8_t rq;
 	uint32_t total;
 	uint64_t max_memory;
+	uint64_t iterations = 0;
 
 	if (argc != 2)
 		return -1;
@@ -59,5 +60,10 @@ uint64_t test_mm(uint64_t argc, char *argv[]) {
 			if (mm_rqs[i].address) {
 				myFree(mm_rqs[i].address);
 			}
+
+		// Salida visible para poder verificar desde la terminal que corre OK
+		// (throttle para no inundar la pantalla).
+		if (++iterations % 100 == 0)
+			printf("test_mm: %d iteraciones OK (sin solapamientos)\n", (int) iterations);
 	}
 }

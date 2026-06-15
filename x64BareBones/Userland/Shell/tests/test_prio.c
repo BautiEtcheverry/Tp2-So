@@ -1,4 +1,4 @@
-#include "syscall.h"
+#include "sys.h"
 #include "test_util.h"
 #include <stdint.h>
 
@@ -72,5 +72,6 @@ uint64_t test_prio(uint64_t argc, char *argv[]) {
 	for (i = 0; i < TOTAL_PROCESSES; i++)
 		waitPid(pids[i]);
 
+	printf("test_prio: DONE\n");
 	return 0;
 }

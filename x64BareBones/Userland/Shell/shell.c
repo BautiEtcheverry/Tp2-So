@@ -78,6 +78,13 @@ static int test_sync_wrapper(int argc, char *argv[]) {
 	if (argc < 1) return -1;
 	return (int)test_sync((uint64_t)(argc - 1), argv + 1);
 }
+static int test_processes_wrapper(int argc, char *argv[]) {
+	/* test_processes lee argv[1] (como test_mm): se le pasa argc/argv tal cual. */
+	return (int) test_processes((uint64_t) argc, argv);
+}
+static int test_prio_wrapper(int argc, char *argv[]) {
+	return (int) test_prio((uint64_t) argc, argv);
+}
 
 const Command commands[] = {
 	{"help",        help,                "Usage and commands",                              CAT_GENERAL, BUILTIN},
@@ -105,6 +112,8 @@ const Command commands[] = {
 	{"mvar",        mvar_main,           "Readers/writers over an MVar: mvar <wr> <rd>",    CAT_IPC,     PROGRAM},
 	{"test_mm",     test_mm_wrapper,     "Memory manager stress test: test_mm <max_bytes>", CAT_TEST,    PROGRAM},
 	{"test_sync",   test_sync_wrapper,   "Semaphore test: test_sync <n> <use_sem 0|1>",     CAT_TEST,    PROGRAM},
+	{"test_proc",   test_processes_wrapper,"Process stress test: test_proc <max_procs>",     CAT_TEST,    PROGRAM},
+	{"test_prio",   test_prio_wrapper,   "Priority test: test_prio <max_value>",            CAT_TEST,    PROGRAM},
 	{NULL, NULL, NULL, 0, 0}
 };
 

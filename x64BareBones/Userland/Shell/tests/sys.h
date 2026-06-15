@@ -51,4 +51,12 @@ static inline int64_t waitPid(uint64_t pid) {
     return waitpid(pid);
 }
 
+/* Nombre con mayúscula que usan los tests de la cátedra. */
+static inline uint64_t getPid(void) {
+    return getpid();
+}
+
+/* Programa del shell que usan los tests de procesos como "proceso dummy". */
+int endless_loop(int argc, char *argv[]);
+
 #endif // SYS_H

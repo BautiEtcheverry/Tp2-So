@@ -1,4 +1,4 @@
-#include "syscall.h"
+#include "sys.h"
 #include "test_util.h"
 
 enum State { RUNNING, BLOCKED, KILLED };
@@ -14,6 +14,7 @@ int64_t test_processes(uint64_t argc, char *argv[]) {
 	uint8_t action;
 	uint64_t max_processes;
 	uint8_t *argvAux[] = {(uint8_t *) "endless_loop", 0};
+	uint64_t cycle = 0;
 
 	if (argc != 2)
 		return -1;
@@ -24,9 +25,12 @@ int64_t test_processes(uint64_t argc, char *argv[]) {
 	p_rq p_rqs[max_processes];
 
 	while (1) {
+		printf("test_processes: ciclo %d - creando %d procesos (kill/block/unblock al azar)...\n",
+		       (int) (++cycle), (int) max_processes);
+
 		// Create max_processes processes
 		for (rq = 0; rq < max_processes; rq++) {
-			p_rqs[rq].pid = createProcess(endless_loop, 1, (uint8_t **) argvAux, 0);
+			p_rqs[rq].pid = createProcess((void *) endless_loop, 1, (uint8_t **) argvAux, 0);
 
 			if (p_rqs[rq].pid == -1) {
 				printf("test_processes: ERROR creating process\n");
