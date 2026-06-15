@@ -13,11 +13,17 @@ buddy: all
 toolchain:
 	cd Toolchain; make all
 
+buddy:
+	$(MAKE) MM=buddy all
+
+buddy:
+	$(MAKE) MM=buddy all
+
 bootloader:
 	cd Bootloader; make all
 
 kernel:
-	cd Kernel; make all MM=$(MM)
+	cd Kernel; $(MAKE) MM=$(MM) all
 
 userland:
 	cd Userland; make all
