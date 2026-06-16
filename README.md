@@ -78,7 +78,7 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 #### Procesos
 | Comando | Parámetros | Descripción |
 |---|---|---|
-| `ps` | — | Lista procesos (PID, PPID, prio, estado, stack, RSP, fg). |
+| `ps` | — | Lista procesos (PID, nombre, estado, prioridad, foreground, stack base, RSP). |
 | `kill` | `<pid>` | Termina el proceso `<pid>`. |
 | `nice` | `<pid> <prio>` | Cambia la prioridad de `<pid>` (0 = más alta). |
 | `block` | `<pid>` | Bloquea el proceso `<pid>`. |
@@ -99,8 +99,8 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 |---|---|---|
 | `test_mm` | `<max_bytes>` | Stress test del memory manager. |
 | `test_proc` | `<max_procs>` | Stress test de creación/scheduling de procesos. |
-| `test_sync` | `<n> <use_sem 0\|1>` | Incrementa un contador desde N procesos, con/sin semáforo. |
-| `test_prio` | `<max_value>` | Verifica progreso relativo según prioridades. |
+| `test_sync` | `<n> <use_sem 0\|1>` | 4 procesos (2 suman, 2 restan) hacen `n` operaciones sobre una variable global. Con sem=1 → 0; sin sem=0 → varía entre corridas. |
+| `test_prio` | `<count>` | 3 procesos cuentan hasta `<count>`; con distinta prioridad se ve cuál termina antes. |
 
 ### 2.2 Caracteres especiales (pipes y background)
 
@@ -120,11 +120,15 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 **Memory manager (`mem`)**
 ```
 > mem
-> loop &        ; loop &        ; loop &
-> mem           # se observa que "usado" creció
+> loop &                # PID 4
+> loop &                # PID 5
+> loop &                # PID 6
+> mem                   # se observa que "usado" creció
 > ps
-> kill 4 ; kill 5 ; kill 6
-> mem           # vuelve a bajar
+> kill 4
+> kill 5
+> kill 6
+> mem                   # vuelve a bajar
 ```
 
 **Scheduler / prioridades (`nice`, `block`)**
@@ -132,10 +136,11 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 > loop &                # PID 4
 > loop &                # PID 5
 > nice 4 0              # 4 con máxima prioridad
-> nice 5 9              # 5 con baja prioridad → imprime mucho menos seguido
+> nice 5 3              # 5 con baja prioridad (rango 0-3) → corre menos seguido
 > block 4               # 4 deja de imprimir
 > unblock 4
-> kill 4 ; kill 5
+> kill 4
+> kill 5
 ```
 
 **Pipes y background (IPC sin semáforo)**
@@ -148,8 +153,8 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 **Semáforos / sincronización**
 ```
 > mvar 2 3              # 2 escritores y 3 lectores sobre una MVar
-> test_sync 8 0         # 8 procesos sin sem → resultado != 8*N
-> test_sync 8 1         # mismos 8 con sem → resultado == 8*N
+> test_sync 1000 0      # sin semáforo → race condition: resultado != 0 (varía cada corrida)
+> test_sync 1000 1      # con semáforo → resultado == 0 siempre
 ```
 
 **Excepciones**
@@ -162,8 +167,9 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 
 - **Memory manager**: implementados free-list y buddy system. Se elige en tiempo de compilación (`make` / `make buddy`).
 - **Procesos**: `fork/exec` no implementados (la cátedra no lo pide). Se usa `sys_create_process` con entry point + argv.
-- **Scheduler**: round-robin con prioridades (0–9). Aging no implementado (no requerido).
-- **IPC**: pipes anónimos con buffer circular y semáforos contadores con cola de espera. Pipes con nombre no implementados.
+- **Scheduler**: round-robin con prioridades (0–3, 0 = más alta; a mayor prioridad, más quantums por turno). Aging no implementado (no requerido).
+- **IPC**: pipes con buffer circular (read/write bloqueantes) y semáforos contadores con cola de espera. Soportan pipes con nombre (procesos no relacionados los comparten acordando un id vía `pipe_open(id)`); la shell usa pipes anónimos (`id = -1`) para `|`.
+- **Sincronización**: `test_sync` sin semáforo agrega una espera activa en la sección crítica para ensanchar la ventana y hacer visible la race condition (con semáforo se serializa → resultado 0).
 - **Shell**: soporta un único `|` por línea (no cadenas de 3+ comandos). No hay redirección a archivo (`>`, `<`) porque no hay filesystem.
 - Resto de la consigna obligatoria: implementado.
 
@@ -175,7 +181,7 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 - No hay paginación on-demand ni protección por anillos para userland (todo corre en ring 0).
 - Sin filesystem ni persistencia: la imagen es read-only y el estado se pierde al reiniciar.
 - El historial de comandos es en memoria (se pierde al reboot).
-- `textSize` está limitado a los tamaños soportados por el framebuffer (1× y 2×).
+- `textSize` ofrece tres tamaños predefinidos (default / large / xlarge = 1× / 2× / 3×); no hay escalado arbitrario.
 - Los procesos comparten el address space; un bug de userland puede corromper memoria del kernel.
 - Cadenas de más de un pipe no están soportadas por el parser de la shell.
 - El audio del PC speaker requiere backend de QEMU compatible (coreaudio/alsa); en otros entornos se silencia.
