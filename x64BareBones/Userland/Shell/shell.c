@@ -113,7 +113,7 @@ const Command commands[] = {
 	{"test_mm",     test_mm_wrapper,     "MM stress: random alloc/free, checks no overlaps (infinite). Usage: test_mm <max_bytes>", CAT_TEST,    PROGRAM},
 	{"test_sync",   test_sync_wrapper,   "Semaphores vs race condition: sem=1 gives 0, sem=0 varies. Usage: test_sync <iters> <sem 0|1>", CAT_TEST,    PROGRAM},
 	{"test_proc",   test_processes_wrapper,"Scheduler stress: random create/block/unblock/kill (infinite). Usage: test_proc <max_procs>", CAT_TEST,    PROGRAM},
-	{"test_prio",   test_prio_wrapper,   "Priority demo: higher priority finishes first. Usage: test_prio <value>", CAT_TEST,    PROGRAM},
+	{"test_prio",   test_prio_wrapper,   "Priority demo: 3 procs count up to <count>, higher priority ends first. Usage: test_prio <count>", CAT_TEST,    PROGRAM},
 	{NULL, NULL, NULL, 0, 0}
 };
 

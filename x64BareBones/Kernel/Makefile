@@ -7,13 +7,13 @@ KERNEL=kernel.bin
 #   make buddy  -> buddy system
 # Por eso memory/ NO entra por wildcard (compilaria los dos -> simbolos duplicados):
 # se selecciona el .c segun MM.
-# NOTA: hasta integrar el manager elegido, ambas ramas usan buddy.c. Cuando llegue,
-#       cambiar la rama 'else' a memory/<elegido>.c.
+#   make        -> memory/free_list.c (free list explicita, first-fit + coalescing)
+#   make buddy  -> memory/buddy.c     (buddy system)
 MM ?= default
 ifeq ($(MM),buddy)
   MM_SRC = memory/buddy.c
 else
-  MM_SRC = memory/buddy.c
+  MM_SRC = memory/free_list.c
 endif
 
 SOURCES=$(wildcard *.c cdrivers/*.c processes/*.c ipc/*.c) $(MM_SRC)
