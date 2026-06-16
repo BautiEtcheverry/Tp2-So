@@ -4,6 +4,7 @@
 // Cada bloque vive con su header al principio; el usuario recibe el puntero al payload (header + 1).
 
 #include "memory_manager.h"
+#include "libasm.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -62,6 +63,9 @@ void *alloc_memory(memory_manager_ADT mm, size_t size) {
 		size = MIN_PAYLOAD;
 	}
 
+	// Sin esto un timer tick a mitad de un split nos parte la lista al medio.
+	uint64_t flags = irq_save();
+
 	// First-fit: recorro la lista física desde el primer bloque y agarro el primer libre que entre.
 	fl_node_t *curr = mm->first;
 	while (curr != NULL) {
@@ -71,6 +75,7 @@ void *alloc_memory(memory_manager_ADT mm, size_t size) {
 		curr = curr->next;
 	}
 	if (curr == NULL) {
+		irq_restore(flags);
 		return NULL; // no hay bloque libre suficientemente grande
 	}
 
@@ -91,15 +96,19 @@ void *alloc_memory(memory_manager_ADT mm, size_t size) {
 	curr->free = false;
 	mm->allocated_blocks++;
 	mm->total_allocated += curr->size;
-	return (void *) (curr + 1);
+	void *payload = (void *) (curr + 1);
+	irq_restore(flags);
+	return payload;
 }
 
 void free_memory(memory_manager_ADT mm, void *ptr) {
 	if (mm == NULL || ptr == NULL) {
 		return;
 	}
+	uint64_t flags = irq_save();
 	fl_node_t *block = ((fl_node_t *) ptr) - 1;
 	if (block->free) {
+		irq_restore(flags);
 		return; // double free, ignorar
 	}
 	block->free = true;
@@ -124,6 +133,7 @@ void free_memory(memory_manager_ADT mm, void *ptr) {
 			block->next->prev = prev;
 		}
 	}
+	irq_restore(flags);
 }
 
 mem_info_t get_mem_status(memory_manager_ADT mm) {

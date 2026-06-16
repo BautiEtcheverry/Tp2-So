@@ -10,6 +10,7 @@ GLOBAL outb
 GLOBAL inl
 GLOBAL outl
 GLOBAL cpu_halt
+GLOBAL sti_hlt
 GLOBAL read_tsc_asm
 GLOBAL irq_save
 GLOBAL irq_restore
@@ -144,7 +145,18 @@ outl:
 cpu_halt:
 	hlt
 	ret
-	
+
+; void sti_hlt(void) — sti+hlt atómico.
+; La instrucción que sigue a STI se ejecuta antes de que el CPU atienda
+; interrupciones, así que si llegó una entre el cli previo y este sti, queda
+; pendiente y dispara recién en el hlt. Evita el lost wakeup que pasaría si
+; usáramos sti_enable() y cpu_halt() por separado.
+sti_hlt:
+	sti
+	hlt
+	ret
+
+
 ; void picMasterMask(uint8_t mask);
 picMasterMask:
     mov dx, 0x21       ; PIC master

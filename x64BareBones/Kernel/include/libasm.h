@@ -13,6 +13,9 @@ void outl(uint16_t port, uint32_t val);
 void cpu_halt(void);
 void cpu_cli(void);
 
+// sti+hlt atómico — para dormir esperando una interrupción sin perder wakeups.
+void sti_hlt(void);
+
 // Master PIC setup
 // Enable/disable interrupts on the master PIC (IRQs 0..7)
 void picMasterMask(uint8_t mask);

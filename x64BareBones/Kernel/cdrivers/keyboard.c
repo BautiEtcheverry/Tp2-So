@@ -149,7 +149,11 @@ char keyboard_getchar(void){
 }
 
 void keyboard_clear_buffer(void){
+    /* head lo modifica el ISR — si nos preempta entre la lectura y la escritura
+     * de tail podemos perder o duplicar caracteres. cli corto y listo. */
+    uint64_t flags = irq_save();
     tail = head; // drop pending keys
+    irq_restore(flags);
 }
 
 char keyboard_getchar_nonblocking(void){

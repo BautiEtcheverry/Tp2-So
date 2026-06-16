@@ -42,10 +42,26 @@ typedef uint64_t (*syscall_fn)(uint64_t a1, uint64_t a2, uint64_t a3);
 /* PID del proceso en foreground — para Ctrl+C desde el keyboard driver */
 static uint64_t kernel_foreground_pid = 0;
 void set_kernel_foreground(uint64_t pid) { kernel_foreground_pid = pid; }
+
+/* Ctrl+C llega desde el ISR del teclado (IF=0, interrumpiendo cualquier path
+ * del kernel — incluso uno a mitad de mutar el ring o el allocator).
+ * Si llamáramos killProcess acá podríamos reentrar a esas estructuras y
+ * corromperlas. En vez de eso, dejamos un flag y el scheduler lo drena en
+ * la próxima llamada a schedule(), donde ya estamos en un punto seguro. */
+static volatile uint64_t pending_kill_pid = 0;
+
 void kill_foreground(void) {
     if (kernel_foreground_pid) {
-        killProcess(kernel_foreground_pid);
+        pending_kill_pid = kernel_foreground_pid;
         kernel_foreground_pid = 0;
+    }
+}
+
+void drain_pending_kill(void) {
+    uint64_t pid = pending_kill_pid;
+    if (pid != 0) {
+        pending_kill_pid = 0;
+        killProcess(pid);
     }
 }
 
