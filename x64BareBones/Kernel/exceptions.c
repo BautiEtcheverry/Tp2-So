@@ -11,6 +11,10 @@ typedef struct {
     uint64_t rip, cs, rflags;
 } registers_t;
 
+/* Seteados por los stubs isr_exc_pf / isr_exc_gp (Kernel/asm/exceptions.asm) */
+extern uint64_t exc_cr2;
+extern uint64_t exc_errcode;
+
 static void vd_print_hex64(uint64_t v){
     static const char hex[]="0123456789ABCDEF";
     char b[19]; b[0]='0'; b[1]='x';
@@ -71,6 +75,23 @@ void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame){
     switch (exception) {
         case 0:  printExp(&regs, "[EXCEPTION] Division by zero\n\n"); break;
         case 6:  printExp(&regs, "[EXCEPTION] Invalid opcode\n\n"); break;
+        case 13:
+            vdSetColor(0xFF0000);
+            vdPrint("[EXCEPTION] General Protection Fault\n");
+            vdPrint(" Error code: 0x"); vd_print_hex64(exc_errcode); vdPrint("\n");
+            print_registers(&regs);
+            vdPrint("\nSYSTEM HALTED\n");
+            vdSetColor(0xFFFFFF);
+            break;
+        case 14:
+            vdSetColor(0xFF0000);
+            vdPrint("[EXCEPTION] Page Fault\n");
+            vdPrint(" CR2 (fault addr): 0x"); vd_print_hex64(exc_cr2); vdPrint("\n");
+            vdPrint(" Error code: 0x"); vd_print_hex64(exc_errcode); vdPrint("\n");
+            print_registers(&regs);
+            vdPrint("\nSYSTEM HALTED\n");
+            vdSetColor(0xFFFFFF);
+            break;
         default:
             vdSetColor(0xFF0000);
             vdPrint("[EXCEPTION]\n\n");

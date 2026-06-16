@@ -10,6 +10,8 @@ extern isr_syscall_80
 extern keyboard_isr_handler
 extern isr_exc_de
 extern isr_exc_ud
+extern isr_exc_gp
+extern isr_exc_pf
 extern exitCurrentProcess
 
 section .bss
@@ -74,9 +76,11 @@ syscall_gate_init:
     ; Set keyboard IRQ (0x21) gate (kernel only)
     SET_GATE 0x21, isr_irq1_keyboard
     
-    ; Exceptions: 0 = Divide Error, 6 = Invalid Opcode
+    ; Exceptions: 0 = Divide Error, 6 = Invalid Opcode, 13 = #GP, 14 = #PF
     SET_GATE 0x00, isr_exc_de
     SET_GATE 0x06, isr_exc_ud
+    SET_GATE 0x0D, isr_exc_gp
+    SET_GATE 0x0E, isr_exc_pf
     
     pop rbx
     mov rsp, rbp
