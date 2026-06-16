@@ -23,3 +23,9 @@ compile_flags.txt
 .bash_history
 .bashrc
 .viminfo
+
+# Análisis estático (PVS-Studio) y base de compilación (bear)
+pvs_report/
+strace_out
+compile_commands.json
+*.PVS-Studio.*
