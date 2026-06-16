@@ -30,6 +30,14 @@ typedef struct {
     int      stdout_res;  /* 1=pantalla, PIPE_FD_BASE+id=pipe */
 } CreateProcessArgs;
 
+/*
+ * Todos los handlers comparten esta firma para poder vivir en la jump table.
+ * Cada uno castea/ignora los argumentos que necesita (a1, a2, a3 vienen crudos
+ * desde el stub int 0x80). Así el dispatcher no usa un switch/case: indexa la
+ * tabla por id y hace un call indirecto.
+ */
+typedef uint64_t (*syscall_fn)(uint64_t a1, uint64_t a2, uint64_t a3);
+
 
 /* PID del proceso en foreground — para Ctrl+C desde el keyboard driver */
 static uint64_t kernel_foreground_pid = 0;
@@ -41,28 +49,32 @@ void kill_foreground(void) {
     }
 }
 
-extern uint64_t exc_resume_rip; 
+extern uint64_t exc_resume_rip;
 extern uint64_t read_tsc_asm(void);
 
 // Forward declaration: implemented in Kernel/cdrivers/regs.c
 void regs_print(void);
 
-static uint64_t sys_set_exc_resume(uint64_t rip){
-    exc_resume_rip = rip;
+static uint64_t sys_set_exc_resume(uint64_t a1, uint64_t a2, uint64_t a3){
+    (void)a2; (void)a3;
+    exc_resume_rip = a1;
     return 0;
 }
 
-static uint64_t sys_pipe_open(int id) {
-    return (uint64_t)pipe_open(id);
+static uint64_t sys_pipe_open(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    return (uint64_t)pipe_open((int)a1);
 }
 
-static uint64_t sys_pipe_close_write(int id) {
-    pipe_close_write(id);
+static uint64_t sys_pipe_close_write(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    pipe_close_write((int)a1);
     return 0;
 }
 
-static uint64_t sys_pipe_close_read(int id) {
-    pipe_close_read(id);
+static uint64_t sys_pipe_close_read(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    pipe_close_read((int)a1);
     return 0;
 }
 
@@ -71,7 +83,10 @@ static uint64_t sys_pipe_close_read(int id) {
  * fd_slot 0 = stdin, fd_slot 1 = stdout.
  * Así el proceso pasa a leer/escribir del pipe sin cambiar su código.
  */
-static uint64_t sys_pipe_set_fd(int pipe_id, int fd_slot) {
+static uint64_t sys_pipe_set_fd(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a3;
+    int pipe_id = (int)a1;
+    int fd_slot = (int)a2;
     PCB *p = getCurrentProcess();
     if (!p || fd_slot < 0 || fd_slot > 1)
         return (uint64_t)-1;
@@ -79,11 +94,13 @@ static uint64_t sys_pipe_set_fd(int pipe_id, int fd_slot) {
     return 0;
 }
 
-static uint64_t sys_exit(uint64_t status) {
-    exitCurrentProcess((int)status);
+static uint64_t sys_exit(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    exitCurrentProcess((int)a1);
     return 0;  // inalcanzable
 }
 
+/* Helper interno (no es una syscall): escribe n bytes en pantalla. */
 static uint64_t sys_write_screen(const char *buf, size_t n)
 {
     static char kernel_buffer[8192];
@@ -117,8 +134,12 @@ static uint64_t sys_write_screen(const char *buf, size_t n)
     return ret;
 }
 
-static uint64_t sys_write(uint64_t fd, const char *buf, uint64_t len)
+static uint64_t sys_write(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    uint64_t fd = a1;
+    const char *buf = (const char *)a2;
+    uint64_t len = a3;
+
     if (buf == 0 || fd > 1)
         return 0;
 
@@ -143,8 +164,9 @@ static uint64_t sys_write(uint64_t fd, const char *buf, uint64_t len)
     return sys_write_screen(buf, n);
 }
 
-static uint64_t sys_clear(void)
+static uint64_t sys_clear(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a1; (void)a2; (void)a3;
     if (videoIsLFB())
         gfx_clear();
     else
@@ -152,8 +174,12 @@ static uint64_t sys_clear(void)
     return 0;
 }
 
-static uint64_t sys_read(uint64_t fd, char *buf, uint64_t len)
+static uint64_t sys_read(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    uint64_t fd = a1;
+    char *buf = (char *)a2;
+    uint64_t len = a3;
+
     if (fd > 1 || buf == 0 || len == 0)
         return 0;
 
@@ -181,25 +207,26 @@ static uint64_t sys_read(uint64_t fd, char *buf, uint64_t len)
     return 1;
 }
 
-
-static uint64_t sys_read_tsc(void) {
+static uint64_t sys_read_tsc(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a1; (void)a2; (void)a3;
     return read_tsc_asm();
 }
 
-static uint64_t sys_set_text_color(uint64_t rgb)
+static uint64_t sys_set_text_color(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a2; (void)a3;
     if (videoIsLFB())
-{
-        gfx_set_fg((uint32_t)rgb);
-        vdSetColor((uint32_t)rgb);
-    } else{
-        (void)rgb;
+    {
+        gfx_set_fg((uint32_t)a1);
+        vdSetColor((uint32_t)a1);
     }
     return 0;
 }
 
-static uint64_t sys_set_text_color_name(const char *name)
+static uint64_t sys_set_text_color_name(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a2; (void)a3;
+    const char *name = (const char *)a1;
     if (!name)
         return (uint64_t)-1;
     if (videoIsLFB())
@@ -212,8 +239,9 @@ static uint64_t sys_set_text_color_name(const char *name)
     return (uint64_t)-1;
 }
 
-static uint64_t sys_print_available_colors(void)
+static uint64_t sys_print_available_colors(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a1; (void)a2; (void)a3;
     if (videoIsLFB())
     {
         vdPrintAvailableColors();
@@ -222,8 +250,9 @@ static uint64_t sys_print_available_colors(void)
     return (uint64_t)-1;
 }
 
-static uint64_t sys_regs_print(void)
+static uint64_t sys_regs_print(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a1; (void)a2; (void)a3;
     if (videoIsLFB())
     {
         regs_print();
@@ -232,28 +261,82 @@ static uint64_t sys_regs_print(void)
     return (uint64_t)-1;
 }
 
-static uint64_t sys_set_colors(uint64_t fg, uint64_t bg)
+static uint64_t sys_set_colors(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a3;
     if (videoIsLFB())
     {
-        gfx_set_colors((uint32_t)fg, (uint32_t)bg);
-        vdSetColor((uint32_t)fg);
+        gfx_set_colors((uint32_t)a1, (uint32_t)a2);
+        vdSetColor((uint32_t)a1);
         return 0;
     }
     return (uint64_t)-1;
 }
 
-static uint64_t sys_get_shell_cols(void)
+static uint64_t sys_get_shell_cols(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a1; (void)a2; (void)a3;
     if (videoIsLFB())
         return (uint64_t)vdGetShellCols();
     return (uint64_t)0;
 }
 
-static uint64_t sys_get_shell_rows(void)
+static uint64_t sys_get_shell_rows(uint64_t a1, uint64_t a2, uint64_t a3)
 {
+    (void)a1; (void)a2; (void)a3;
     if (videoIsLFB())
         return (uint64_t)vdGetShellRows();
+    return (uint64_t)0;
+}
+
+static uint64_t sys_kbd_available(uint64_t a1, uint64_t a2, uint64_t a3)
+{
+    (void)a1; (void)a2; (void)a3;
+    return (uint64_t)kbd_available();
+}
+
+static uint64_t sys_get_color_by_name(uint64_t a1, uint64_t a2, uint64_t a3)
+{
+    (void)a2; (void)a3;
+    if (videoIsLFB())
+        return (uint64_t)vdGetColorByName((const char *)a1);
+    return (uint64_t)0xFFFFFF;
+}
+
+static uint64_t sys_get_screen_px_width(uint64_t a1, uint64_t a2, uint64_t a3)
+{
+    (void)a1; (void)a2; (void)a3;
+    if (videoIsLFB())
+        return (uint64_t)vdGetScreenWidth();
+    return (uint64_t)0;
+}
+
+static uint64_t sys_get_screen_px_height(uint64_t a1, uint64_t a2, uint64_t a3)
+{
+    (void)a1; (void)a2; (void)a3;
+    if (videoIsLFB())
+        return (uint64_t)vdGetScreenHeight();
+    return (uint64_t)0;
+}
+
+static uint64_t sys_gfx_fill_blended(uint64_t a1, uint64_t a2, uint64_t a3)
+{
+    if (!videoIsLFB())
+        return (uint64_t)-1;
+
+    /* a1 = x, a2 = y, a3 = pointer to args { uint32_t w,h,color,alpha } */
+    struct blend_args {
+        uint32_t w;
+        uint32_t h;
+        uint32_t color;
+        uint32_t alpha;
+    };
+    const struct blend_args *args = (const struct blend_args *)a3;
+    if (!args)
+        return (uint64_t)-1;
+
+    drawRectFillBlend((uint32_t)args->color, (uint64_t)a1, (uint64_t)a2,
+                      (uint64_t)args->w, (uint64_t)args->h, (uint8_t)args->alpha);
     return (uint64_t)0;
 }
 
@@ -268,7 +351,8 @@ static uint8_t bcd_to_bin(uint8_t b)
     return (uint8_t)((b & 0x0F) + ((b >> 4) * 10));
 }
 
-static uint64_t sys_time(void) {
+static uint64_t sys_time(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a1; (void)a2; (void)a3;
     // Read RTC seconds, minutes, hours, day, month, year; handle BCD vs binary
     uint8_t sec = cmos_read(0x00);
     uint8_t min = cmos_read(0x02);
@@ -304,9 +388,11 @@ static uint64_t sys_time(void) {
                       ((uint64_t)hour << 16) | ((uint64_t)min << 8) | (uint64_t)sec;
     return packed;
 }
-static uint64_t sys_set_text_size(uint64_t mode)
+
+static uint64_t sys_set_text_size(uint64_t a1, uint64_t a2, uint64_t a3)
 {
-    int m = (int)mode;
+    (void)a2; (void)a3;
+    int m = (int)a1;
     if (m < 0 || m > 2)
         return (uint64_t)-1;
 
@@ -319,8 +405,9 @@ static uint64_t sys_set_text_size(uint64_t mode)
 
 /* ---------- syscalls de gestión de procesos ---------- */
 
-static uint64_t sys_create_process(uint64_t args_ptr) {
-    CreateProcessArgs *a = (CreateProcessArgs *)args_ptr;
+static uint64_t sys_create_process(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    CreateProcessArgs *a = (CreateProcessArgs *)a1;
     if (!a || !a->fn) return (uint64_t)-1;
     /* Usar argv[0] como nombre del proceso para que ps muestre el comando real */
     const char *name = (a->argc > 0 && a->argv && a->argv[0]) ? a->argv[0] : "proc";
@@ -332,11 +419,19 @@ static uint64_t sys_create_process(uint64_t args_ptr) {
     return (uint64_t)pcb->pid;
 }
 
-static uint64_t sys_getpid(void) {
+static uint64_t sys_getpid(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a1; (void)a2; (void)a3;
     return getCurrentPID();
 }
 
-static uint64_t sys_kill(uint64_t pid) {
+static uint64_t sys_waitpid(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    return (uint64_t)waitForProcess(a1);
+}
+
+static uint64_t sys_kill(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    uint64_t pid = a1;
     /* idle (PID 1) y shell (PID 2) son intocables — matarlos freezea el sistema */
     if (pid <= 2)
         return (uint64_t)-1;
@@ -347,7 +442,9 @@ static uint64_t sys_kill(uint64_t pid) {
     return 0;
 }
 
-static uint64_t sys_block(uint64_t pid) {
+static uint64_t sys_block(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    uint64_t pid = a1;
     if (pid <= 2)                   /* idle y shell no son bloqueables desde userland */
         return (uint64_t)-1;
     PCB *p = findProcess(pid);
@@ -358,7 +455,9 @@ static uint64_t sys_block(uint64_t pid) {
     return 0;
 }
 
-static uint64_t sys_unblock(uint64_t pid) {
+static uint64_t sys_unblock(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    uint64_t pid = a1;
     PCB *p = findProcess(pid);
     if (!p || p->state == DEAD)
         return (uint64_t)-1;
@@ -368,7 +467,10 @@ static uint64_t sys_unblock(uint64_t pid) {
     return 0;
 }
 
-static uint64_t sys_nice(uint64_t pid, uint64_t priority) {
+static uint64_t sys_nice(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a3;
+    uint64_t pid = a1;
+    uint64_t priority = a2;
     if (pid <= 2)                   /* idle y shell tienen prioridad fija */
         return (uint64_t)-1;
     PCB *p = findProcess(pid);
@@ -385,7 +487,10 @@ static uint64_t sys_nice(uint64_t pid, uint64_t priority) {
  * Retorna la cantidad real de procesos en la lista.
  * Usado por el comando ps de la shell.
  */
-static uint64_t sys_get_processes(ProcessInfo *buf, uint64_t max) {
+static uint64_t sys_get_processes(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a3;
+    ProcessInfo *buf = (ProcessInfo *)a1;
+    uint64_t max = a2;
     PCB *head = getHeadProcess();
     if (!head || !buf || max == 0)
         return 0;
@@ -410,162 +515,122 @@ static uint64_t sys_get_processes(ProcessInfo *buf, uint64_t max) {
     return count;
 }
 
-static uint64_t sys_yield(void) {
+static uint64_t sys_yield(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a1; (void)a2; (void)a3;
     yieldProcess();
     return 0;
 }
 
-static uint64_t sys_get_mem_info(uint64_t buf_ptr) {
-    mem_info_t *out = (mem_info_t *)buf_ptr;
+static uint64_t sys_get_mem_info(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    mem_info_t *out = (mem_info_t *)a1;
     if (!out) return (uint64_t)-1;
     *out = sys_mem_info();
     return 0;
 }
 
-static uint64_t sys_set_foreground(uint64_t pid) {
-    set_kernel_foreground(pid);
+static uint64_t sys_set_foreground(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    set_kernel_foreground(a1);
     return 0;
 }
 
-static uint64_t sys_kmalloc(uint64_t size) {
-    return (uint64_t)sys_malloc((size_t)size);
+static uint64_t sys_kmalloc(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    return (uint64_t)sys_malloc((size_t)a1);
 }
 
-static uint64_t sys_kfree(uint64_t ptr) {
-    sys_free((void *)ptr);
+static uint64_t sys_kfree(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    sys_free((void *)a1);
     return 0;
 }
 
-static uint64_t sys_sem_open(const char *name, uint64_t init) {
-    return (uint64_t) sem_open(name, init);
+static uint64_t sys_sem_open(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a3;
+    return (uint64_t)sem_open((const char *)a1, a2);
 }
 
-static uint64_t sys_sem_wait(int id) {
-    return (uint64_t) sem_wait(id);
+static uint64_t sys_sem_wait(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    return (uint64_t)sem_wait((int)a1);
 }
 
-static uint64_t sys_sem_post(int id) {
-    return (uint64_t) sem_post(id);
+static uint64_t sys_sem_post(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    return (uint64_t)sem_post((int)a1);
 }
 
-static uint64_t sys_sem_close(int id) {
-    return (uint64_t) sem_close(id);
+static uint64_t sys_sem_close(uint64_t a1, uint64_t a2, uint64_t a3) {
+    (void)a2; (void)a3;
+    return (uint64_t)sem_close((int)a1);
 }
 /* ----------------------------------------------------- */
 
+/*
+ * Jump table: cada id mapea a su handler. Los huecos del enum (4, 24, 41, ...)
+ * y cualquier id fuera de rango quedan en NULL gracias a los designated
+ * initializers, y el dispatcher los trata como ENOSYS. El indexado por id +
+ * call indirecto reemplaza al switch/case y mantiene la complejidad ciclomática
+ * del dispatcher en O(1).
+ */
+static const syscall_fn syscall_table[] = {
+    [SYS_WRITE]                 = sys_write,
+    [SYS_CLEAR]                 = sys_clear,
+    [SYS_READ]                  = sys_read,
+    [SYS_TIME]                  = sys_time,
+    [SYS_SET_TEXT_COLOR]        = sys_set_text_color,
+    [SYS_SET_TEXT_COLOR_NAME]   = sys_set_text_color_name,
+    [SYS_PRINT_AVAILABLE_COLORS]= sys_print_available_colors,
+    [SYS_REGS_PRINT]            = sys_regs_print,
+    [SYS_SET_COLORS]            = sys_set_colors,
+    [SYS_GET_SHELL_COLS]        = sys_get_shell_cols,
+    [SYS_GET_SHELL_ROWS]        = sys_get_shell_rows,
+    [SYS_KBD_AVAILABLE]         = sys_kbd_available,
+    [SYS_GET_COLOR_BY_NAME]     = sys_get_color_by_name,
+    [SYS_GFX_FILL_BLENDED]      = sys_gfx_fill_blended,
+    [SYS_GET_SCREEN_PX_WIDTH]   = sys_get_screen_px_width,
+    [SYS_GET_SCREEN_PX_HEIGHT]  = sys_get_screen_px_height,
+    [SYS_SET_TEXT_SIZE]         = sys_set_text_size,
+    [SYS_SET_EXC_RESUME]        = sys_set_exc_resume,
+    [SYS_READ_TSC]              = sys_read_tsc,
+
+    [SYS_MALLOC]                = sys_kmalloc,
+    [SYS_FREE]                  = sys_kfree,
+    [SYS_MEM_INFO]              = sys_get_mem_info,
+
+    [SYS_PIPE_OPEN]             = sys_pipe_open,
+    [SYS_PIPE_CLOSE_WRITE]      = sys_pipe_close_write,
+    [SYS_PIPE_CLOSE_READ]       = sys_pipe_close_read,
+    [SYS_PIPE_SET_FD]           = sys_pipe_set_fd,
+
+    [SYS_CREATE_PROCESS]        = sys_create_process,
+    [SYS_GETPID]                = sys_getpid,
+    [SYS_KILL]                  = sys_kill,
+    [SYS_BLOCK]                 = sys_block,
+    [SYS_UNBLOCK]               = sys_unblock,
+    [SYS_NICE]                  = sys_nice,
+    [SYS_GET_PROCESSES]         = sys_get_processes,
+    [SYS_YIELD]                 = sys_yield,
+
+    [SYS_SEM_OPEN]              = sys_sem_open,
+    [SYS_SEM_WAIT]              = sys_sem_wait,
+    [SYS_SEM_POST]              = sys_sem_post,
+    [SYS_SEM_CLOSE]             = sys_sem_close,
+
+    [SYS_SET_FOREGROUND]        = sys_set_foreground,
+
+    [SYS_EXIT]                  = sys_exit,
+    [SYS_WAITPID]               = sys_waitpid,
+};
+
+#define SYSCALL_COUNT (sizeof(syscall_table) / sizeof(syscall_table[0]))
+
 uint64_t syscall_dispatch(uint64_t id, uint64_t a1, uint64_t a2, uint64_t a3)
 {
-    switch (id)
-    {
-    case SYS_WRITE:
-        return sys_write(a1, (const char *)a2, a3);
-    case SYS_CLEAR:
-        return sys_clear();
-    case SYS_READ:
-        return sys_read(a1, (char *)a2, a3);
-    case SYS_TIME:
-        return sys_time();
-    case SYS_EXIT:
-        return sys_exit(a1);
-    case SYS_WAITPID:
-        return (uint64_t) waitForProcess(a1);
-    case SYS_SET_TEXT_COLOR:
-        return sys_set_text_color(a1);
-    case SYS_SET_TEXT_COLOR_NAME:
-        return sys_set_text_color_name((const char *)a1);
-    case SYS_PRINT_AVAILABLE_COLORS:
-        return sys_print_available_colors();
-    case SYS_SET_COLORS:
-        return sys_set_colors(a1, a2);
-    case SYS_GET_SHELL_COLS:
-        return sys_get_shell_cols();
-    case SYS_GET_SHELL_ROWS:
-        return sys_get_shell_rows();
-    case SYS_KBD_AVAILABLE:
-        return (uint64_t)kbd_available();
-    case SYS_GET_COLOR_BY_NAME:
-        if (videoIsLFB())
-            return (uint64_t)vdGetColorByName((const char *)a1);
-        return (uint64_t)0xFFFFFF;
-    case SYS_GET_SCREEN_PX_WIDTH:
-        if (videoIsLFB())
-            return (uint64_t)vdGetScreenWidth();
-        return (uint64_t)0;
-    case SYS_GET_SCREEN_PX_HEIGHT:
-        if (videoIsLFB())
-            return (uint64_t)vdGetScreenHeight();
-        return (uint64_t)0;
-    case SYS_GFX_FILL_BLENDED:
-        if (videoIsLFB())
-        {
-            /* a1 = x, a2 = y, a3 = pointer to args { uint32_t w,h,color,alpha } */
-            struct blend_args {
-                uint32_t w;
-                uint32_t h;
-                uint32_t color;
-                uint32_t alpha;
-            };
-            const struct blend_args *args = (const struct blend_args *)a3;
-            if (args)
-            {
-                drawRectFillBlend((uint32_t)args->color, (uint64_t)a1, (uint64_t)a2,
-                                  (uint64_t)args->w, (uint64_t)args->h, (uint8_t)args->alpha);
-                return (uint64_t)0;
-            }
-            return (uint64_t)-1;
-        }
-        return (uint64_t)-1;
-    case SYS_REGS_PRINT:
-        return sys_regs_print();
-    case SYS_SET_TEXT_SIZE:
-        return (uint64_t)sys_set_text_size((int)a1);
-    case SYS_SET_EXC_RESUME:
-        return sys_set_exc_resume(a1);
-    case SYS_READ_TSC:
-        return sys_read_tsc();
-    case SYS_PIPE_OPEN:
-        return sys_pipe_open((int)a1);
-    case SYS_PIPE_CLOSE_WRITE:
-        return sys_pipe_close_write((int)a1);
-    case SYS_PIPE_CLOSE_READ:
-        return sys_pipe_close_read((int)a1);
-    case SYS_PIPE_SET_FD:
-        return sys_pipe_set_fd((int)a1, (int)a2);
-    case SYS_CREATE_PROCESS:
-        return sys_create_process(a1);
-    case SYS_GETPID:
-        return sys_getpid();
-    case SYS_KILL:
-        return sys_kill(a1);
-    case SYS_BLOCK:
-        return sys_block(a1);
-    case SYS_UNBLOCK:
-        return sys_unblock(a1);
-    case SYS_NICE:
-        return sys_nice(a1, a2);
-    case SYS_GET_PROCESSES:
-        return sys_get_processes((ProcessInfo *)a1, a2);
-    case SYS_YIELD:
-        return sys_yield();
-    case SYS_MEM_INFO:
-        return sys_get_mem_info(a1);
-    case SYS_SET_FOREGROUND:
-        return sys_set_foreground(a1);
-    case SYS_MALLOC:
-        return sys_kmalloc(a1);
-    case SYS_FREE:
-        return sys_kfree(a1);
-        case SYS_SEM_OPEN:
-        return sys_sem_open((const char *)a1, a2);
-    case SYS_SEM_WAIT:
-        return sys_sem_wait((int)a1);
-    case SYS_SEM_POST:
-        return sys_sem_post((int)a1);
-    case SYS_SEM_CLOSE:
-        return sys_sem_close((int)a1);
-    default:
-        return (uint64_t)-1; // ENOSYS
-    }
+    if (id >= SYSCALL_COUNT || syscall_table[id] == NULL)
+        return (uint64_t)-1;   /* ENOSYS */
+    return syscall_table[id](a1, a2, a3);
 }
 
 void syscall_init(void)
