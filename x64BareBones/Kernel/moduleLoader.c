@@ -20,19 +20,12 @@ static void loadModule(uint8_t ** module, void * targetModuleAddress)
 {
 	uint32_t moduleSize = readUint32(module);
 
-	ncPrint("  Will copy module at 0x");
-	ncPrintHex((uint64_t)*module);
-	ncPrint(" to 0x");
-	ncPrintHex((uint64_t)targetModuleAddress);
-	ncPrint(" (");
-	ncPrintDec(moduleSize);
-	ncPrint(" bytes)");
-
+	/* IMPORTANTE: no hacer I/O de consola acá. naiveConsole usa un buffer estático
+	 * que, segun el layout de .bss (ver kernel.ld), se solapa con el payload de
+	 * modulos todavia sin evacuar. Escribir consola (ncPrintDec/Hex usan ese buffer)
+	 * durante la copia corromperia el modulo origen ANTES del memcpy. */
 	memcpy(targetModuleAddress, *module, moduleSize);
 	*module += moduleSize;
-
-	ncPrint(" [Done]");
-	ncNewline();
 }
 
 static uint32_t readUint32(uint8_t ** address)
