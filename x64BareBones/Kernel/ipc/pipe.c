@@ -2,6 +2,7 @@
 #include "scheduler.h"
 #include "libasm.h"
 #include <stddef.h>
+#include <stdint.h>
 
 static Pipe pipes[MAX_PIPES];
 
@@ -54,22 +55,31 @@ int pipe_write(int id, const char *buf, int len) {
         return -1;
 
     Pipe *p = &pipes[id];
-    if (!p->in_use || p->read_closed)
+    uint64_t flags = irq_save();
+    if (!p->in_use || p->read_closed) {
+        irq_restore(flags);
         return -1;
+    }
 
     int written = 0;
     while (written < len) {
         /* Esperar mientras el buffer está lleno */
         while (p->count == PIPE_BUF_SIZE) {
-            if (p->read_closed) //-V547  read_closed lo cambia otro proceso (el lector cierra el pipe) mientras este escritor duerme bloqueado abajo; el re-chequeo es necesario
+            if (p->read_closed) {
+                irq_restore(flags);
                 return written;  /* el lector desapareció */
+            }
 
-            cpu_cli();
             p->blocked_writer = getCurrentPID();
             blockProcess(getCurrentPID());
-            sti_enable();
-            cpu_halt();
+            /* sti+hlt atómico: si el wakeup llega entre el sti y el hlt
+             * en x86 se mantiene pendiente y dispara el hlt igual.
+             * Si los hicieramos por separado se podría perder el wakeup
+             * y este proceso quedaría dormido para siempre. */
+            sti_hlt();
+            cpu_cli();
             p->blocked_writer = 0;
+            /* re-chequea count y read_closed en la siguiente iter del while */
         }
 
         p->buf[p->write_pos] = buf[written++];
@@ -82,6 +92,7 @@ int pipe_write(int id, const char *buf, int len) {
             p->blocked_reader = 0;
         }
     }
+    irq_restore(flags);
     return written;
 }
 
@@ -90,19 +101,23 @@ int pipe_read(int id, char *buf, int len) {
         return -1;
 
     Pipe *p = &pipes[id];
-    if (!p->in_use)
+    uint64_t flags = irq_save();
+    if (!p->in_use) {
+        irq_restore(flags);
         return -1;
+    }
 
     /* Esperar mientras el buffer está vacío */
     while (p->count == 0) {
-        if (p->write_closed)
+        if (p->write_closed) {
+            irq_restore(flags);
             return 0;  /* EOF: el escritor cerró y no quedan datos */
+        }
 
-        cpu_cli();
         p->blocked_reader = getCurrentPID();
         blockProcess(getCurrentPID());
-        sti_enable();
-        cpu_halt();
+        sti_hlt();
+        cpu_cli();
         p->blocked_reader = 0;
     }
 
@@ -120,6 +135,7 @@ int pipe_read(int id, char *buf, int len) {
         p->blocked_writer = 0;
     }
 
+    irq_restore(flags);
     return n;
 }
 
@@ -128,8 +144,11 @@ void pipe_close_write(int id) {
         return;
 
     Pipe *p = &pipes[id];
-    if (!p->in_use)
+    uint64_t flags = irq_save();
+    if (!p->in_use) {
+        irq_restore(flags);
         return;
+    }
 
     p->write_closed = 1;
 
@@ -142,6 +161,7 @@ void pipe_close_write(int id) {
     /* Si el lector también cerró, liberar el slot */
     if (p->read_closed)
         p->in_use = 0;
+    irq_restore(flags);
 }
 
 void pipe_close_read(int id) {
@@ -149,8 +169,11 @@ void pipe_close_read(int id) {
         return;
 
     Pipe *p = &pipes[id];
-    if (!p->in_use)
+    uint64_t flags = irq_save();
+    if (!p->in_use) {
+        irq_restore(flags);
         return;
+    }
 
     p->read_closed = 1;
 
@@ -163,4 +186,5 @@ void pipe_close_read(int id) {
     /* Si el escritor también cerró, liberar el slot */
     if (p->write_closed)
         p->in_use = 0;
+    irq_restore(flags);
 }
