@@ -6,6 +6,7 @@
 // bloques grandes.
 
 #include "memory_manager.h"
+#include "libasm.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -126,12 +127,18 @@ void *alloc_memory(memory_manager_ADT mm, size_t size) {
 	}
 	uint8_t index = order - MIN_ORDER;
 
+	// Lock global del allocator: si nos preempta el timer en medio de un split
+	// las free_lists quedan inconsistentes.
+	uint64_t flags = irq_save();
+
 	if (mm->free_lists[index] == NULL && order < MAX_ORDER) {
 		if (split_block(mm, order + 1) == NULL) {
+			irq_restore(flags);
 			return NULL;
 		}
 	}
 	if (mm->free_lists[index] == NULL) {
+		irq_restore(flags);
 		return NULL;
 	}
 
@@ -143,15 +150,19 @@ void *alloc_memory(memory_manager_ADT mm, size_t size) {
 	mm->allocated_blocks++;
 	mm->total_allocated += order_to_size(order) - sizeof(buddy_node_t);
 
-	return (char *) block + sizeof(buddy_node_t);
+	void *payload = (char *) block + sizeof(buddy_node_t);
+	irq_restore(flags);
+	return payload;
 }
 
 void free_memory(memory_manager_ADT mm, void *ptr) {
 	if (mm == NULL || ptr == NULL) {
 		return;
 	}
+	uint64_t flags = irq_save();
 	buddy_node_t *block = (buddy_node_t *) ((char *) ptr - sizeof(buddy_node_t));
 	if (block->free) {
+		irq_restore(flags);
 		return; // Double free — ignorar
 	}
 	block->free = true;
@@ -160,6 +171,7 @@ void free_memory(memory_manager_ADT mm, void *ptr) {
 
 	add_to_free_list(mm, block, block->order);
 	coalesce(mm, block);
+	irq_restore(flags);
 }
 mem_info_t get_mem_status(memory_manager_ADT mm) {
 	mem_info_t status = {0};
