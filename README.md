@@ -52,16 +52,69 @@ Levanta QEMU con la imagen generada en `x64BareBones/Image/x64BareBonesImage.qco
 
 ## Comandos y tests
 
-_Sección a completar a medida que se implementen las apps de userland (sh, ps, kill, nice, mem, mvar, cat, wc, filter, loop, help, block) y los tests provistos (test_mm, test_proc, test_sync, test_prio)._
+Al iniciar el sistema se carga la **shell** (`sh`). Comandos disponibles:
+
+### Generales
+| Comando | Descripción |
+|---|---|
+| `help` | Muestra los comandos disponibles agrupados por categoría. |
+| `ls` | Lista los comandos. |
+| `cmd-history [-c]` | Historial de comandos (`-c` lo limpia). |
+| `clear` | Limpia la pantalla. |
+| `echo <args>` | Imprime los argumentos. |
+| `time` | Muestra fecha y hora del RTC. |
+| `textColor <color>` | Cambia el color del texto. |
+| `textSize <n>` | Cambia el tamaño del texto. |
+| `regs` | Imprime los registros capturados (Ctrl+R guarda snapshot). |
+| `trigger-div` / `trigger-ud` | Disparan excepciones para testear el handler. |
+
+### Memoria
+| Comando | Descripción |
+|---|---|
+| `mem` | Estado del memory manager (total / usado / libre). |
+
+### Procesos
+| Comando | Descripción |
+|---|---|
+| `ps` | Lista procesos (PID, PPID, prio, estado, stack, RSP, foreground). |
+| `kill <pid>` | Termina un proceso. |
+| `nice <pid> <prio>` | Cambia la prioridad del proceso. |
+| `block <pid>` / `unblock <pid>` | Bloquea / desbloquea un proceso. |
+| `loop [&]` | Imprime saludo con su PID periódicamente. |
+
+### IPC
+| Comando | Descripción |
+|---|---|
+| `cat` | Copia stdin a stdout. |
+| `wc` | Cuenta líneas leídas de stdin. |
+| `filter` | Filtra las vocales de stdin. |
+| `mvar <wr> <rd>` | Test de lectores/escritores sobre una MVar (sincronización). |
+
+### Tests de cátedra
+| Comando | Descripción |
+|---|---|
+| `test_mm <max_bytes>` | Stress test del memory manager. |
+| `test_proc <max_procs>` | Stress test del scheduler / creación de procesos. |
+| `test_sync <n> <use_sem 0\|1>` | Test de semáforos (con/sin sincronización). |
+| `test_prio <max_value>` | Test de prioridades del scheduler. |
 
 ## Caracteres especiales y atajos
 
-_A completar (pipe `|`, background `&`, Ctrl+C, Ctrl+D)._
+- `|` — pipe entre dos comandos: `cmd1 | cmd2` ejecuta ambos en procesos separados conectando stdout→stdin.
+- `&` — ejecuta el comando en background: `loop &`.
+- **Ctrl+C** — envía señal al proceso foreground actual (lo termina).
+- **Ctrl+D** — EOF en stdin (cierra el extremo de lectura).
+- **Ctrl+R** — guarda un snapshot de registros para inspeccionar con `regs`.
+- Flechas ↑/↓ — navegan por el historial.
 
 ## Limitaciones y requerimientos parcialmente implementados
 
-_A completar._
+_(Sección a completar antes de la entrega con lo que quede pendiente o desviado de la consigna.)_
 
 ## Citas / uso de IA
 
-_A completar._
+Se utilizó asistencia de IA (Claude / ChatGPT) como apoyo para:
+- Redacción y formateo de este README.
+- Consultas puntuales de sintaxis de NASM, convención System V AMD64 y patrones de scheduling.
+
+Todo el código entregado fue revisado, adaptado e integrado por los integrantes del grupo. Las referencias bibliográficas adicionales (x86BareBones de la cátedra, "Operating Systems: Three Easy Pieces", manual Intel SDM Vol. 3) se citan en el informe.
