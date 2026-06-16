@@ -110,10 +110,10 @@ const Command commands[] = {
 	{"wc",          wc_main,             "Count lines from stdin",                          CAT_IPC,     PROGRAM},
 	{"filter",      filter_main,         "Filter vowels from stdin",                        CAT_IPC,     PROGRAM},
 	{"mvar",        mvar_main,           "Readers/writers over an MVar: mvar <wr> <rd>",    CAT_IPC,     PROGRAM},
-	{"test_mm",     test_mm_wrapper,     "Memory manager stress test: test_mm <max_bytes>", CAT_TEST,    PROGRAM},
-	{"test_sync",   test_sync_wrapper,   "Semaphore test: test_sync <n> <use_sem 0|1>",     CAT_TEST,    PROGRAM},
-	{"test_proc",   test_processes_wrapper,"Process stress test: test_proc <max_procs>",     CAT_TEST,    PROGRAM},
-	{"test_prio",   test_prio_wrapper,   "Priority test: test_prio <max_value>",            CAT_TEST,    PROGRAM},
+	{"test_mm",     test_mm_wrapper,     "MM stress: random alloc/free, checks no overlaps (infinite). Usage: test_mm <max_bytes>", CAT_TEST,    PROGRAM},
+	{"test_sync",   test_sync_wrapper,   "Semaphores vs race condition: sem=1 gives 0, sem=0 varies. Usage: test_sync <iters> <sem 0|1>", CAT_TEST,    PROGRAM},
+	{"test_proc",   test_processes_wrapper,"Scheduler stress: random create/block/unblock/kill (infinite). Usage: test_proc <max_procs>", CAT_TEST,    PROGRAM},
+	{"test_prio",   test_prio_wrapper,   "Priority demo: higher priority finishes first. Usage: test_prio <value>", CAT_TEST,    PROGRAM},
 	{NULL, NULL, NULL, 0, 0}
 };
 
@@ -194,25 +194,25 @@ int main(void) {
             char *r = pipe_sep + 1;
             while (*r == ' ') r++;
             int len2 = 0;
-            while (r[len2] && len2 < CMD_MAX_LEN) { right[len2] = r[len2]; len2++; }
+            while (len2 < CMD_MAX_LEN && r[len2]) { right[len2] = r[len2]; len2++; }
             right[len2] = 0;
 
             int argc1 = tokenize(left,  argv1, 8);
             int argc2 = tokenize(right, argv2, 8);
-            if (argc1 == 0 || argc2 == 0) { printf("Pipe invalido\n"); continue; }
+            if (argc1 == 0 || argc2 == 0) { printf("Invalid pipe\n"); continue; }
 
             cmdFuncP fn1 = find_cmd_fn(argv1[0]);
             cmdFuncP fn2 = find_cmd_fn(argv2[0]);
-            if (!fn1 || !fn2) { printf("Comando no encontrado\n"); continue; }
+            if (!fn1 || !fn2) { printf("Command not found\n"); continue; }
 
             int pipe_id = pipe_open(-1);
-            if (pipe_id < 0) { printf("Error al crear pipe\n"); continue; }
+            if (pipe_id < 0) { printf("Error creating pipe\n"); continue; }
 
             int pipe_res = PIPE_ID_TO_FD(pipe_id);
             int64_t pid1 = create_process_piped(fn1, argc1, argv1, 0,        pipe_res);
             int64_t pid2 = create_process_piped(fn2, argc2, argv2, pipe_res, 1);
 
-            if (pid1 < 0 || pid2 < 0) { printf("Error creando procesos del pipe\n"); continue; }
+            if (pid1 < 0 || pid2 < 0) { printf("Error creating pipe processes\n"); continue; }
 
             fg_pid = (uint64_t)pid2;
             set_foreground(fg_pid);
@@ -229,7 +229,7 @@ int main(void) {
 
             /* Detectar & al final */
             int background = 0;
-            if (argc > 0 && argv[argc-1][0] == '&' && argv[argc-1][1] == 0) {
+            if (argv[argc-1][0] == '&' && argv[argc-1][1] == 0) {
                 background = 1;
                 argv[--argc] = (char*)0;
             }
@@ -237,14 +237,14 @@ int main(void) {
 
         
             const Command *cmd = find_cmd(argv[0]);
-                if (!cmd) { printf("Comando no encontrado: %s\n", argv[0]); continue; }
+                if (!cmd) { printf("Command not found: %s\n", argv[0]); continue; }
                 if (cmd->kind == BUILTIN) {
                     cmd->fn(argc, argv);        // corre EN la shell, sincrónico
                     continue;
                 }   
 
             int64_t pid = create_process(cmd->fn, argc, argv);
-            if (pid < 0) { printf("Error creando proceso\n"); continue; }
+            if (pid < 0) { printf("Error creating process\n"); continue; }
 
             if (background) {
                 printf("[bg] PID %d\n", (int)pid);

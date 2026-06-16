@@ -64,6 +64,6 @@ uint64_t test_mm(uint64_t argc, char *argv[]) {
 		// Salida visible para poder verificar desde la terminal que corre OK
 		// (throttle para no inundar la pantalla).
 		if (++iterations % 100 == 0)
-			printf("test_mm: %d iteraciones OK (sin solapamientos)\n", (int) iterations);
+			printf("test_mm: %d iterations OK (no overlaps)\n", (int) iterations);
 	}
 }

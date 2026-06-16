@@ -103,14 +103,14 @@ static int mvar_reader(int argc, char *argv[]) {
 
 int mvar_main(int argc, char *argv[]) {
 	if (argc != 3) {
-		printf("uso: mvar <escritores> <lectores>\n");
+		printf("usage: mvar <writers> <readers>\n");
 		return -1;
 	}
 
 	int nw = (int) str_to_uint(argv[1]);
 	int nr = (int) str_to_uint(argv[2]);
 	if (nw <= 0 || nr <= 0 || nw > MAX_WRITERS || nr > MAX_READERS) {
-		printf("mvar: cantidades invalidas (1..%d escritores, 1..%d lectores)\n", MAX_WRITERS, MAX_READERS);
+		printf("mvar: invalid counts (1..%d writers, 1..%d readers)\n", MAX_WRITERS, MAX_READERS);
 		return -1;
 	}
 

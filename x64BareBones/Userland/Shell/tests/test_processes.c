@@ -25,7 +25,7 @@ int64_t test_processes(uint64_t argc, char *argv[]) {
 	p_rq p_rqs[max_processes];
 
 	while (1) {
-		printf("test_processes: ciclo %d - creando %d procesos (kill/block/unblock al azar)...\n",
+		printf("test_processes: cycle %d - creating %d processes (random kill/block/unblock)...\n",
 		       (int) (++cycle), (int) max_processes);
 
 		// Create max_processes processes
