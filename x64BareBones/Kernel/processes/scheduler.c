@@ -16,6 +16,9 @@
 static void wakeWaiters(uint64_t dead_pid);
 static int hasWaiter(uint64_t pid);
 
+/* Definida en syscall.c — drena el kill diferido que dejó Ctrl+C desde el ISR */
+extern void drain_pending_kill(void);
+
 static PCB *head = NULL;
 static PCB *current = NULL;
 static PCB *idle_proc = NULL;
@@ -54,6 +57,11 @@ void addProcess(PCB *pcb) {
 uint64_t schedule(uint64_t currentRSP) {
 	if (current != NULL)
 		current->rsp = currentRSP;
+
+	/* Drenar un Ctrl+C que el ISR del teclado haya dejado pendiente. Acá ya
+	 * estamos en un contexto seguro: IF=0 y ningún path del kernel a mitad
+	 * de tocar el ring (entramos vía el handler del timer). */
+	drain_pending_kill();
 
 	/* Auto-reap: si el proceso actual murió y nadie lo espera, liberarlo ahora.
 	 * Si alguien lo espera con waitpid, se queda como DEAD hasta que ese
