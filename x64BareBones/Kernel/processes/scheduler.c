@@ -38,13 +38,17 @@ void initScheduler(PCB *idleProcess) {
 void addProcess(PCB *pcb) {
 	if (!head || !pcb)
 		return;
+	uint64_t flags = irq_save();
 	pcb->state = READY;
-	/* insertar al final (justo antes de head) */
+	/* insertar al final (justo antes de head). Tiene que ser bajo cli porque
+	 * entre p->next = pcb y pcb->next = head el ring queda con un nodo cuyo
+	 * next es basura — si el timer dispara ahí, schedule() recorre y crashea */
 	PCB *p = head;
 	while (p->next != head)
 		p = p->next;
-	p->next = pcb;
 	pcb->next = head;
+	p->next = pcb;
+	irq_restore(flags);
 }
 
 uint64_t schedule(uint64_t currentRSP) {
@@ -85,59 +89,80 @@ uint64_t schedule(uint64_t currentRSP) {
 }
 
 void blockProcess(uint64_t pid) {
+	uint64_t flags = irq_save();
 	PCB *p = head;
-	if (!p)
+	if (!p) {
+		irq_restore(flags);
 		return;
+	}
 	do {
 		if (p->pid == pid) {
 			p->state = BLOCKED;
 			if (p == current)
 				quantums_remaining = 0;
+			irq_restore(flags);
 			return;
 		}
 		p = p->next;
 	} while (p != head);
+	irq_restore(flags);
 }
 
 void unblockProcess(uint64_t pid) {
+	uint64_t flags = irq_save();
 	PCB *p = head;
-	if (!p)
+	if (!p) {
+		irq_restore(flags);
 		return;
+	}
 	do {
 		if (p->pid == pid) {
 			if (p->state == BLOCKED)
 				p->state = READY;
+			irq_restore(flags);
 			return;
 		}
 		p = p->next;
 	} while (p != head);
+	irq_restore(flags);
 }
 
 /* Bloqueo manual (comando block): marca paused. No toca el state, así no
  * interfiere con un bloqueo por semáforo/pipe/waitpid. */
 void pauseProcess(uint64_t pid) {
+	uint64_t flags = irq_save();
 	PCB *p = findProcess(pid);
-	if (!p)
+	if (!p) {
+		irq_restore(flags);
 		return;
+	}
 	p->paused = 1;
 	if (p == current)
 		quantums_remaining = 0; /* si es el actual, que ceda el CPU ya */
+	irq_restore(flags);
 }
 
 /* Desbloqueo manual (comando unblock): solo limpia paused. NO despierta a un
  * proceso dormido en un semáforo (ese sigue con state == BLOCKED). */
 void resumeProcess(uint64_t pid) {
+	uint64_t flags = irq_save();
 	PCB *p = findProcess(pid);
-	if (!p)
+	if (!p) {
+		irq_restore(flags);
 		return;
+	}
 	p->paused = 0;
+	irq_restore(flags);
 }
 
 void killProcess(uint64_t pid) {
 	if (pid <= 2) return;   /* idle y shell son intocables */
+	uint64_t flags = irq_save();
 	PCB *p = head;
-	if (!p)
+	if (!p) {
+		irq_restore(flags);
 		return;
+	}
 	do {
 		if (p->pid == pid) {
 			/* Cerrar pipes del proceso si tiene alguno abierto */
@@ -154,25 +179,32 @@ void killProcess(uint64_t pid) {
 			/* Si nadie espera este proceso y no es el actual, reapear */
 			if (p != current && !hasWaiter(pid))
 				reapProcess(pid);
+			irq_restore(flags);
 			return;
 		}
 		p = p->next;
 	} while (p != head);
+	irq_restore(flags);
 }
 
 void setPriority(uint64_t pid, int priority) {
+	uint64_t flags = irq_save();
 	PCB *p = head;
-	if (!p)
+	if (!p) {
+		irq_restore(flags);
 		return;
+	}
 	do {
 		if (p->pid == pid) {
 			p->priority = priority;
 			if (p == current)
 				quantums_remaining = 0;
+			irq_restore(flags);
 			return;
 		}
 		p = p->next;
 	} while (p != head);
+	irq_restore(flags);
 }
 
 PCB *getCurrentProcess(void) {
@@ -276,25 +308,35 @@ void reapProcess(uint64_t pid) {
 }
 
 int waitForProcess(uint64_t pid) {
+	uint64_t flags = irq_save();
 	PCB *target = findProcess(pid);
-	if (!target)
+	if (!target) {
+		irq_restore(flags);
 		return -1;
+	}
 
 	PCB *cur = getCurrentProcess();
-	if (!cur || cur->pid == pid)
+	if (!cur || cur->pid == pid) {
+		irq_restore(flags);
 		return -1;
+	}
 
 	/* Si ya murió, reapear y retornar su exit status */
 	if (target->state == DEAD) {
 		int status = target->exit_status;
 		reapProcess(pid);
+		irq_restore(flags);
 		return status;
 	}
 
-	/* Bloquearse hasta que el proceso objetivo muera */
+	/* Bloquearse hasta que el proceso objetivo muera. El check de DEAD y el
+	 * set de wait_pid/BLOCKED van bajo el mismo cli: si el hijo muere entre
+	 * medio, wakeWaiters no nos ve y quedamos dormidos para siempre. */
 	cur->wait_pid = pid;
 	cur->state = BLOCKED;
 	quantums_remaining = 0;
+	irq_restore(flags);
+
 	while (((volatile ProcessState) cur->state) == BLOCKED)
 		cpu_halt();
 
