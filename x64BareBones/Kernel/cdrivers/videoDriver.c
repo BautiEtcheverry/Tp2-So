@@ -336,20 +336,11 @@ static uint32_t read_pixel(uint64_t x, uint64_t y)
     uint8_t *fb = (uint8_t *)(uintptr_t)VBE_mode_info->framebuffer;
     uint16_t pitch = VBE_mode_info->pitch;
     uint64_t off = y * pitch + x * (bpp / 8);
-    if (bpp == 32)
-    {
-        uint8_t b = fb[off + 0];
-        uint8_t g = fb[off + 1];
-        uint8_t r = fb[off + 2];
-        return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
-    }
-    else
-    {
-        uint8_t b = fb[off + 0];
-        uint8_t g = fb[off + 1];
-        uint8_t r = fb[off + 2];
-        return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
-    }
+    /* off ya contempla bpp/8, así que la lectura es la misma para 24 y 32 bpp */
+    uint8_t b = fb[off + 0];
+    uint8_t g = fb[off + 1];
+    uint8_t r = fb[off + 2];
+    return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
 }
 
 //Write a 0xRRGGBB pixel to framebuffer. Supports 24/32bpp.

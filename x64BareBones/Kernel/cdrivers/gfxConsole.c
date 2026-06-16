@@ -3,8 +3,8 @@
 #define FONT_IMPL
 #include <font.h>
 
-static uint32_t fg = 0xFFFFFF;
-static uint32_t bg = 0x000000;
+static uint32_t console_fg = 0xFFFFFF;
+static uint32_t console_bg = 0x000000;
 static uint32_t cols = 0;
 static uint32_t rows = 0;
 static uint32_t cur_c = 0;
@@ -50,11 +50,11 @@ static void buf_append_char(char ch)
 static void gfx_reflow(void)
 {
     // Clear screen and reset cursor; we'll re-render from buffer
-    clearScreen(bg);
+    clearScreen(console_bg);
     if (margin_r > 0)
-        drawRectFill(bg, 0, 0, getScreenWidth(), margin_r * cell_h());
+        drawRectFill(console_bg, 0, 0, getScreenWidth(), margin_r * cell_h());
     if (margin_c > 0)
-        drawRectFill(bg, 0, 0, margin_c * eff_width(), getScreenHeight());
+        drawRectFill(console_bg, 0, 0, margin_c * eff_width(), getScreenHeight());
     cur_c = 0;
     cur_r = 0;
 
@@ -105,7 +105,7 @@ static inline void blit_glyph(int ch, uint32_t px, uint32_t py)
             for (int rx = 0; rx < (int)umr_int.width; rx++)
             {
                 uint32_t mask = 1u << ((int)umr_int.width - 1 - rx);
-                uint32_t color = (row & mask) ? fg : bg;
+                uint32_t color = (row & mask) ? console_fg : console_bg;
                 uint32_t outx = px + (uint32_t)((int)umr_int.width - 1 - rx) * 2;
                 uint32_t outy = py + (uint32_t)ry * 2;
 
@@ -127,7 +127,7 @@ static inline void blit_glyph(int ch, uint32_t px, uint32_t py)
             for (int rx = 0; rx < (int)umr_int.width; rx++)
             {
                 uint32_t mask = 1u << ((int)umr_int.width - 1 - rx);
-                uint32_t color = (row & mask) ? fg : bg;
+                uint32_t color = (row & mask) ? console_fg : console_bg;
                 uint32_t outx = px + (uint32_t)((int)umr_int.width - 1 - rx) * 3;
                 uint32_t outy = py + (uint32_t)ry * 3;
                 for (int oy = 0; oy < 3; oy++)
@@ -144,7 +144,7 @@ static inline void blit_glyph(int ch, uint32_t px, uint32_t py)
         for (int rx = 0; rx < (int)umr_int.width; rx++)
         {
             uint32_t mask = 1u << ((int)umr_int.width - 1 - rx);
-            uint32_t color = (row & mask) ? fg : bg;
+            uint32_t color = (row & mask) ? console_fg : console_bg;
             putPixel(color, px + (uint32_t)((int)umr_int.width - 1 - rx), py + (uint32_t)ry);
         }
     }
@@ -152,7 +152,7 @@ static inline void blit_glyph(int ch, uint32_t px, uint32_t py)
 
 static inline void clear_cell(uint32_t c, uint32_t r)
 {
-    drawRectFill(bg,
+    drawRectFill(console_bg,
                  (margin_c + c) * eff_width(),
                  (margin_r * cell_h()) + (r * cell_h()),
                  eff_width(),
@@ -161,8 +161,8 @@ static inline void clear_cell(uint32_t c, uint32_t r)
 
 void gfx_init(uint32_t fg_rgb, uint32_t bg_rgb)
 {
-    fg = fg_rgb;
-    bg = bg_rgb;
+    console_fg = fg_rgb;
+    console_bg = bg_rgb;
     cols = getScreenWidth() / eff_width();
     // Horizontal margin in columns
     cols = (cols > margin_c) ? (cols - margin_c) : 0;
@@ -178,27 +178,27 @@ void gfx_init(uint32_t fg_rgb, uint32_t bg_rgb)
     cur_r = 0;
     if (cols < 1) cols = 1;
      if (rows < 1) rows = 1;
-    clearScreen(bg);
+    clearScreen(console_bg);
     // Ensure margins area remains blank
     if (margin_r > 0)
-        drawRectFill(bg, 0, 0, getScreenWidth(), margin_r * cell_h());
+        drawRectFill(console_bg, 0, 0, getScreenWidth(), margin_r * cell_h());
     if (margin_c > 0)
-        drawRectFill(bg, 0, 0, margin_c * eff_width(), getScreenHeight());
+        drawRectFill(console_bg, 0, 0, margin_c * eff_width(), getScreenHeight());
 }
 
 void gfx_clear(void)
 {
     /* Clear screen and reset cursor */
-    clearScreen(bg);
+    clearScreen(console_bg);
     /* Clear the internal text buffer too*/
     gfx_text_buf_len = 0;
     gfx_text_buf_start = 0;
     cur_c = 0;
     cur_r = 0;
     if (margin_r > 0)
-        drawRectFill(bg, 0, 0, getScreenWidth(), margin_r * cell_h());
+        drawRectFill(console_bg, 0, 0, getScreenWidth(), margin_r * cell_h());
     if (margin_c > 0)
-        drawRectFill(bg, 0, 0, margin_c * eff_width(), getScreenHeight());
+        drawRectFill(console_bg, 0, 0, margin_c * eff_width(), getScreenHeight());
 }
 
 // Advance to a new line. If at bottom, scroll the framebuffer up by one
@@ -211,17 +211,17 @@ static inline void new_line(void)
     if (cur_r >= rows)
     {
         // scroll up by one character row
-        scrollUp((uint16_t)cell_h(), bg);
+        scrollUp((uint16_t)cell_h(), console_bg);
         // after scroll, cursor stays at last row
         cur_r = rows ? rows - 1 : 0;
 
         // keep sup margin clean
         if (margin_r > 0) {
-            drawRectFill(bg, 0, 0, getScreenWidth(), margin_r * cell_h());
+            drawRectFill(console_bg, 0, 0, getScreenWidth(), margin_r * cell_h());
         }
 
         uint32_t y0 = getScreenHeight() - cell_h();
-        drawRectFill(bg, 0, y0, getScreenWidth(), cell_h());
+        drawRectFill(console_bg, 0, y0, getScreenWidth(), cell_h());
 
     }
 }
@@ -262,7 +262,7 @@ void gfx_putc(char ch)
             uint32_t x0 = (margin_c + cur_c) * eff_width();
             uint32_t w  = (next - cur_c) * eff_width();
             uint32_t y0 = margin_r * cell_h() + cur_r * cell_h();
-            drawRectFill(bg, x0, y0, w, cell_h());
+            drawRectFill(console_bg, x0, y0, w, cell_h());
             cur_c = next;
         }
         if (cur_c >= cols)
@@ -289,13 +289,13 @@ size_t gfx_write(const char *buf, size_t len)
 
 void gfx_set_colors(uint32_t fg_rgb, uint32_t bg_rgb)
 {
-    fg = fg_rgb;
-    bg = bg_rgb;
+    console_fg = fg_rgb;
+    console_bg = bg_rgb;
 }
 
 void gfx_set_fg(uint32_t fg_rgb)
 {
-    fg = fg_rgb;
+    console_fg = fg_rgb;
 }
 
 // Expose console geometry (in character cells) to other kernel code

@@ -61,7 +61,7 @@ int pipe_write(int id, const char *buf, int len) {
     while (written < len) {
         /* Esperar mientras el buffer está lleno */
         while (p->count == PIPE_BUF_SIZE) {
-            if (p->read_closed)
+            if (p->read_closed) //-V547  read_closed lo cambia otro proceso (el lector cierra el pipe) mientras este escritor duerme bloqueado abajo; el re-chequeo es necesario
                 return written;  /* el lector desapareció */
 
             cpu_cli();

@@ -43,10 +43,8 @@ static uint64_t calibrate_tsc_per_sec(void) {
 //returns the actual time in nanoseconds since origin
 long long actualTime(void) {
     if (tsc_per_sec == 0) {
-        tsc_per_sec = calibrate_tsc_per_sec();
-        if (tsc_per_sec == 0)
-            tsc_per_sec = 2000000000ULL;
-        
+        tsc_per_sec = calibrate_tsc_per_sec();  /* nunca retorna 0: ya hace su propio fallback a 2e9 */
+
         tsc_origin = read_tsc();
         ticks_to_ns_fixed = (NS_PER_SEC * FIXED_POINT_SCALE) / tsc_per_sec;
     }
@@ -54,7 +52,7 @@ long long actualTime(void) {
     uint64_t delta = read_tsc() - tsc_origin; 
     uint64_t ns_fixed = (delta * ticks_to_ns_fixed) / FIXED_POINT_SCALE;
     
-    if (ns_fixed > 9220000000000000000ULL) {
+    if (ns_fixed > 9220000000000000000ULL) { //-V547  clamp defensivo: protege el cast a long long (LLONG_MAX ~9.22e18) ante overflow de delta*ticks tras mucho uptime
         ns_fixed = 9220000000000000000ULL;
     }
     

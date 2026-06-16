@@ -22,7 +22,7 @@
  */
 static inline void *semInit(char *name, uint64_t initialValue) {
     int id = sem_open(name, initialValue);
-    return (id < 0) ? (void *)0 : (void *)(uint64_t)(id + 1);
+    return (id < 0) ? (void *)0 : (void *)((uint64_t)id + 1);
 }
 
 static inline int semWait(void *sem) {
