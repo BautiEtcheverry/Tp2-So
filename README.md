@@ -192,7 +192,6 @@ Al iniciar el sistema se carga la shell. Todos los comandos aceptan `<args>` sep
 
 ### Código de terceros
 - Base **x64BareBones** provista por la cátedra (Bootloader, Loader, esqueleto de Makefile, `naiveConsole`, ABI de syscalls): https://bitbucket.org/RowDaBoat/x64barebones/
-- Suite de unit-test **CuTest** (`Tests/CuTest.{c,h}`): dominio público, usada para los tests internos del memory manager.
 - Toolchain (NASM, ld, gcc) y entrypoint de loader: parte de la imagen `agodio/itba-so-multiarch:3.1`.
 
 ### Bibliografía
