@@ -37,12 +37,11 @@ struct memory_manager_CDT {
 
 static memory_manager_ADT kernel_mm = NULL;
 
-//Firmas de funciones estaticas.
+// Firmas de funciones estaticas.
 static void add_to_free_list(memory_manager_ADT mm, buddy_node_t *node, uint8_t order);
 static buddy_node_t *split_block(memory_manager_ADT mm, uint8_t order);
 static void remove_from_free_list(memory_manager_ADT mm, buddy_node_t *node, uint8_t order);
 static void coalesce(memory_manager_ADT mm, buddy_node_t *block);
-
 
 /*-------------------Helpers---------------------*/
 // Retorna  2^order — tamaño en bytes de un bloque de orden `order`.
@@ -183,17 +182,19 @@ static buddy_node_t *split_block(memory_manager_ADT mm, uint8_t order) {
 	}
 	uint8_t index = order - MIN_ORDER;
 
-	if (mm->free_lists[index] == NULL && order < MAX_ORDER) {
+	if (mm->free_lists[index] == NULL &&
+		order < MAX_ORDER) { //-V557 index = order-MIN_ORDER acotado por el guard de arriba (order en
+							 //(MIN_ORDER,MAX_ORDER]) => 1..NUM_ORDERS-1, nunca 255
 		// Busco dividir bloques mas grandes recursivamente
 		if (split_block(mm, order + 1) == NULL) {
 			return NULL;
 		}
 	}
-	if (mm->free_lists[index] == NULL) {
+	if (mm->free_lists[index] == NULL) { //-V557
 		return NULL;
 	}
 
-	buddy_node_t *block = mm->free_lists[index];
+	buddy_node_t *block = mm->free_lists[index]; //-V557
 	remove_from_free_list(mm, block, order);
 
 	uint8_t new_order = order - 1;
@@ -213,7 +214,20 @@ static void coalesce(memory_manager_ADT mm, buddy_node_t *block) {
 	if (order >= MAX_ORDER) {
 		return;
 	}
-	buddy_node_t *buddy = (buddy_node_t *) get_buddy_address(mm, block, order);
+	void *buddy_addr = get_buddy_address(mm, block, order);
+
+	// El buddy calculado por XOR puede caer FUERA del heap administrado cuando
+	// `block` es un bloque de tope (el heap no es una potencia de 2 exacta).
+	// Sin este chequeo leeríamos memoria ajena como si fuera un nodo y, si por
+	// casualidad pareciera "libre", remove_from_free_list escribiría a través de
+	// un next/prev basura -> corrupción de memoria / page fault.
+	char *heap_start = (char *) mm->base_address;
+	char *heap_end = heap_start + mm->total_size;
+	if ((char *) buddy_addr < heap_start || (char *) buddy_addr + order_to_size(order) > heap_end) {
+		return;
+	}
+
+	buddy_node_t *buddy = (buddy_node_t *) buddy_addr;
 	if (!buddy->free || buddy->order != order) {
 		return;
 	}
