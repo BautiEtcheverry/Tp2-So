@@ -61,9 +61,16 @@ static char *child_argv[MAX_WRITERS + MAX_READERS][3];
  *   - el pid: distingue a cada proceso.
  */
 static void active_wait_random(void) {
-	uint32_t tsc = (uint32_t) sys_0p(SYS_READ_TSC);
+	uint64_t tsc64 = sys_0p(SYS_READ_TSC);
+	uint32_t tsc = (uint32_t) tsc64;
 	uint32_t r = (tsc ^ ((uint32_t) getpid() << 16)) * 2654435761u;
 	uint32_t spins = (r >> 8) % 8000000u + 1000000u;
+
+	/* DEBUG TEMPORAL: ver qué valores toma el TSC y los spins resultantes.
+	 * tsc_hi = parte alta (32 bits), tsc_lo = parte baja (la que usamos). */
+	printf("[wait] pid=%d tsc_hi=%u tsc_lo=%u spins=%u\n",
+	       (int) getpid(), (unsigned) (tsc64 >> 32), (unsigned) tsc, (unsigned) spins);
+
 	for (volatile uint32_t i = 0; i < spins; i++)
 		;
 }
